@@ -20,7 +20,7 @@ from config import (
     TIMELINE_FETCH_INTERVAL_MINUTES
 )
 from bluesky_client import BlueskyClient
-from scheduler import run_timeline_fetch, post_pending_replies
+from scheduler import run_timeline_fetch, post_pending_replies, create_original_post, reset_hourly_counters, reset_daily_counters
 from models import init_db
 
 # Configure logging
@@ -91,17 +91,44 @@ def setup_scheduler():
         replace_existing=True
     )
     
-    # Post replies with natural delays
+    # Post replies every 15 minutes (fits 50/day target)
     scheduler.add_job(
         post_pending_replies,
-        trigger=IntervalTrigger(minutes=5),
+        trigger=IntervalTrigger(minutes=15),
         id="post_replies",
         name="Post pending replies",
         replace_existing=True
     )
     
+    # Create original posts every 12 hours (2/day)
+    scheduler.add_job(
+        create_original_post,
+        trigger=IntervalTrigger(hours=12),
+        id="original_post",
+        name="Create original content",
+        replace_existing=True
+    )
+    
+    # Reset hourly counters
+    scheduler.add_job(
+        reset_hourly_counters,
+        trigger=IntervalTrigger(hours=1),
+        id="reset_hourly",
+        name="Reset hourly counters",
+        replace_existing=True
+    )
+    
+    # Reset daily counters at midnight
+    scheduler.add_job(
+        reset_daily_counters,
+        trigger=IntervalTrigger(hours=24),
+        id="reset_daily",
+        name="Reset daily counters",
+        replace_existing=True
+    )
+    
     scheduler.start()
-    logger.info("Scheduler started")
+    logger.info("Scheduler started with jobs: timeline_fetch, post_replies, original_post, counters")
 
 
 def main():

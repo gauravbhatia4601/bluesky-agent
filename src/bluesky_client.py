@@ -26,6 +26,7 @@ class BlueskyClient:
         self.session = None
         self.hourly_count = 0
         self.daily_count = 0
+        self.daily_original_posts = 0  # Track original posts per day
     
     def login(self) -> bool:
         """Login to Bluesky with session persistence"""
@@ -193,6 +194,18 @@ class BlueskyClient:
         except Exception as e:
             logger.error(f"Failed to like post: {e}")
             return False
+    
+    def post_original(self, text: str) -> Optional[str]:
+        """Post original content (not a reply)"""
+        try:
+            response = self.client.post(text=text)
+            self.hourly_count += 1
+            self.daily_count += 1
+            logger.info(f"Posted original content: {response.uri}")
+            return response.uri
+        except Exception as e:
+            logger.error(f"Failed to post original content: {e}")
+            return None
     
     def reset_hourly_count(self):
         """Reset hourly counter (call from scheduler)"""

@@ -22,14 +22,20 @@ POINTS_CREATE = 3
 POINTS_UPDATE = 2
 POINTS_DELETE = 1
 
-# Safe posting limits (well under rate limit)
-MAX_REPLIES_PER_HOUR = 50  # ~150 points
-MAX_REPLIES_PER_DAY = 200  # ~600 points
+# Posting targets (start conservative to avoid flags)
+MAX_REPLIES_PER_HOUR = 8  # ~24 points
+MAX_REPLIES_PER_DAY = 50  # ~150 points
+MAX_ORIGINAL_POSTS_PER_DAY = 2  # 2 posts/day
 
 # Scheduling
-TIMELINE_FETCH_INTERVAL_MINUTES = 15
-POST_DELAY_MIN_SECONDS = 30
-POST_DELAY_MAX_SECONDS = 120
+TIMELINE_FETCH_INTERVAL_MINUTES = 30  # Fetch every 30 min
+POST_DELAY_MIN_SECONDS = 60  # More natural spacing
+POST_DELAY_MAX_SECONDS = 180
+REPLY_INTERVAL_MINUTES = 15  # Post 1 reply every 15 min (fits 50/day)
+ORIGINAL_POST_INTERVAL_HOURS = 12  # Post original content every 12 hours
+
+# Engagement settings
+AUTO_LIKE_ON_REPLY = True  # Like every post we reply to
 
 # Session persistence
 SESSION_FILE = Path("/app/session.json")

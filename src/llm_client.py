@@ -160,6 +160,72 @@ Reply:"""
                 score += 0.05
         
         return max(0.0, min(1.0, score))
+    
+    def generate_original_post(
+        self,
+        topics: List[str],
+        style: str = "insight"
+    ) -> Optional[str]:
+        """Generate original post content"""
+        
+        topic_str = ", ".join(topics[:3])
+        
+        style_prompts = {
+            "insight": f"Share a specific insight or lesson learned about {topic_str}. Be concrete and opinionated.",
+            "tip": f"Share a practical tip about {topic_str} that most people get wrong.",
+            "opinion": f"Share a contrarian or nuanced opinion about {topic_str}. Take a stance.",
+            "question": f"Ask a thought-provoking question about {topic_str} that makes people think."
+        }
+        
+        prompt = f"""Generate a short social media post (under 280 characters).
+
+{style_prompts.get(style, style_prompts['insight'])}
+
+Requirements:
+- Be specific, not generic
+- Sound like an experienced practitioner, not a tutorial
+- No hedging ("I think", "in my opinion")
+- One clear idea only
+- No hashtags unless genuinely useful
+- No call-to-action ("What do you think?")
+
+Post:"""
+
+        try:
+            response = requests.post(
+                f"{self.endpoint}/api/generate",
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "system": SYSTEM_PROMPT,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.9,
+                        "top_p": 0.95,
+                        "num_predict": 80
+                    }
+                },
+                timeout=self.timeout
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                post_text = data.get("response", "").strip()
+                post_text = self._clean_reply(post_text, 280)
+                
+                if post_text and len(post_text) > 15:
+                    logger.debug(f"Generated original post: {post_text[:50]}...")
+                    return post_text
+                else:
+                    logger.warning("Original post too short or empty")
+                    return None
+            else:
+                logger.error(f"LLM request failed: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"LLM error: {e}")
+            return None
 
 
 # Global instance

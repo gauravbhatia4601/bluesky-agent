@@ -247,3 +247,34 @@ def mark_failed(reply_id: int):
             session.commit()
     finally:
         session.close()
+
+
+def add_original_post(text: str, uri: str) -> bool:
+    """Add an original post to history"""
+    session = get_session()
+    try:
+        # Check if already exists
+        existing = session.query(Reply).filter(Reply.reply_uri == uri).first()
+        if existing:
+            return False
+        
+        reply = Reply(
+            post_uri=uri,
+            post_cid="",
+            post_text="[ORIGINAL POST]",
+            post_author="self",
+            reply_text=text,
+            reply_uri=uri,
+            reply_status="posted",
+            posted_at=datetime.utcnow(),
+            quality_score=100
+        )
+        session.add(reply)
+        session.commit()
+        return True
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to add original post: {e}")
+        return False
+    finally:
+        session.close()
