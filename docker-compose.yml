@@ -1,0 +1,25 @@
+version: "3.11"
+
+services:
+  bluesky-agent:
+    build: .
+    container_name: bluesky-agent
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - BSKY_HANDLE=${BSKY_HANDLE}
+      - BSKY_PASSWORD=${BSKY_PASSWORD}
+      - DATABASE_URL=${DATABASE_URL}
+      - LLM_ENDPOINT=${LLM_ENDPOINT:-http://host.docker.internal:11434}
+      - TZ=${TZ:-UTC}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./session.json:/app/session.json
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
