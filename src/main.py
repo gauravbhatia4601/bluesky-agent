@@ -14,10 +14,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 from flask import Flask, render_template, jsonify, request
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.executors.threadpool import ThreadPoolExecutor
 
 from config import (
     DASHBOARD_HOST, DASHBOARD_PORT, SESSION_FILE,
-    TIMELINE_FETCH_INTERVAL_MINUTES
+    TIMELINE_FETCH_INTERVAL_MINUTES, REPLY_INTERVAL_MINUTES, ORIGINAL_POST_INTERVAL_HOURS
 )
 from bluesky_client import BlueskyClient, get_client
 from scheduler import run_timeline_fetch, post_pending_replies, create_original_post, reset_hourly_counters, reset_daily_counters
@@ -170,8 +171,6 @@ def api_reply():
 def setup_scheduler():
     """Setup background scheduler for timeline fetch and reply posting"""
     global scheduler
-    
-    from apscheduler.executors.threadpool import ThreadPoolExecutor
     
     scheduler = BackgroundScheduler(timezone="UTC")
     scheduler.add_executor(ThreadPoolExecutor())
