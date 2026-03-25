@@ -121,20 +121,49 @@ class BlueskyClient:
     def search_posts(self, query: str, limit: int = 25) -> List[Dict[str, Any]]:
         """Search for posts by keyword"""
         try:
-            response = self.client.app.bsky.feed.search_posts({
-                "q": query,
-                "limit": limit
-            })
+            from atproto import SessionInfo
+            import requests
+            
+            session_info = self.client._session
+            if session_info and hasattr(session_info, 'accessJwt'):
+                access_jwt = session_info.accessJwt
+            elif session_info and hasattr(session_info, 'access_jwt'):
+                access_jwt = session_info.access_jwt
+            else:
+                access_jwt = None
+            
+            if not access_jwt:
+                self.login()
+                session_info = self.client._session
+                if hasattr(session_info, 'accessJwt'):
+                    access_jwt = session_info.accessJwt
+                elif hasattr(session_info, 'access_jwt'):
+                    access_jwt = session_info.access_jwt
+            
+            headers = {
+                "Authorization": f"Bearer {access_jwt}",
+                "Content-Type": "application/json"
+            }
+            
+            params = {"q": query, "limit": limit}
+            response = requests.get(
+                f"{BSKY_SERVICE}/xrpc/app.bsky.feed.searchPosts",
+                headers=headers,
+                params=params
+            )
+            
+            response.raise_for_status()
+            data = response.json()
             
             posts = []
-            for item in response.posts:
+            for item in data.get("posts", []):
                 post = {
-                    "uri": item.uri,
-                    "cid": item.cid,
-                    "text": item.record.text if hasattr(item, "record") else "",
-                    "author_handle": item.author.handle,
-                    "author_did": item.author.did,
-                    "indexed_at": item.indexed_at
+                    "uri": item.get("uri", ""),
+                    "cid": item.get("cid", ""),
+                    "text": item.get("record", {}).get("text", ""),
+                    "author_handle": item.get("author", {}).get("handle", ""),
+                    "author_did": item.get("author", {}).get("did", ""),
+                    "indexed_at": item.get("indexedAt", "")
                 }
                 posts.append(post)
             
@@ -143,6 +172,16 @@ class BlueskyClient:
         except Exception as e:
             logger.error(f"Failed to search posts: {e}")
             return []
+    
+    def _refresh_auth(self):
+        """Refresh authentication if session expired"""
+        try:
+            self.client.login(BSKY_HANDLE, BSKY_PASSWORD)
+            self.session = self.client.export_session_string()
+            self._save_session()
+            logger.info("Refreshed authentication")
+        except Exception as e:
+            logger.error(f"Failed to refresh auth: {e}")
     
     def get_topic_posts(self) -> List[Dict[str, Any]]:
         """Search for posts matching our topic keywords"""
