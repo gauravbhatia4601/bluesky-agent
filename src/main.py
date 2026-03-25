@@ -11,7 +11,7 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -19,9 +19,9 @@ from config import (
     DASHBOARD_HOST, DASHBOARD_PORT, SESSION_FILE,
     TIMELINE_FETCH_INTERVAL_MINUTES
 )
-from bluesky_client import BlueskyClient
+from bluesky_client import BlueskyClient, get_client
 from scheduler import run_timeline_fetch, post_pending_replies, create_original_post, reset_hourly_counters, reset_daily_counters
-from models import init_db
+from models import init_db, add_original_post
 
 # Configure logging
 logging.basicConfig(
@@ -75,6 +75,96 @@ def api_queue():
 def health():
     """Health check endpoint"""
     return jsonify({"status": "healthy"}), 200
+
+
+@app.route("/api/timeline")
+def api_timeline():
+    """Get timeline posts"""
+    client = get_client()
+    if not client:
+        return jsonify({"error": "Client not initialized"}), 500
+    
+    limit = request.args.get("limit", 20, type=int)
+    posts = client.get_timeline(limit=limit)
+    return jsonify({"posts": posts})
+
+
+@app.route("/api/search")
+def api_search():
+    """Search posts"""
+    client = get_client()
+    if not client:
+        return jsonify({"error": "Client not initialized"}), 500
+    
+    query = request.args.get("q", "")
+    limit = request.args.get("limit", 20, type=int)
+    
+    if not query:
+        return jsonify({"posts": []})
+    
+    posts = client.search_posts(query=query, limit=limit)
+    return jsonify({"posts": posts})
+
+
+@app.route("/api/post", methods=["POST"])
+def api_post():
+    """Post original content"""
+    client = get_client()
+    if not client:
+        return jsonify({"success": False, "error": "Client not initialized"}), 500
+    
+    data = request.get_json()
+    text = data.get("text", "").strip()
+    
+    if not text:
+        return jsonify({"success": False, "error": "Text is required"}), 400
+    
+    uri = client.post_original(text=text)
+    if uri:
+        add_original_post(text=text, uri=uri)
+        return jsonify({"success": True, "uri": uri})
+    
+    return jsonify({"success": False, "error": "Failed to post"}), 500
+
+
+@app.route("/api/like", methods=["POST"])
+def api_like():
+    """Like a post"""
+    client = get_client()
+    if not client:
+        return jsonify({"success": False, "error": "Client not initialized"}), 500
+    
+    data = request.get_json()
+    uri = data.get("uri")
+    cid = data.get("cid")
+    
+    if not uri or not cid:
+        return jsonify({"success": False, "error": "uri and cid required"}), 400
+    
+    success = client.like_post(uri=uri, cid=cid)
+    return jsonify({"success": success})
+
+
+@app.route("/api/reply", methods=["POST"])
+def api_reply():
+    """Post a reply"""
+    client = get_client()
+    if not client:
+        return jsonify({"success": False, "error": "Client not initialized"}), 500
+    
+    data = request.get_json()
+    uri = data.get("uri")
+    cid = data.get("cid")
+    text = data.get("text", "").strip()
+    
+    if not uri or not cid or not text:
+        return jsonify({"success": False, "error": "uri, cid, and text required"}), 400
+    
+    reply_uri = client.post_reply(parent_uri=uri, parent_cid=cid, text=text)
+    if reply_uri:
+        return jsonify({"success": True, "uri": reply_uri})
+    
+    return jsonify({"success": False, "error": "Failed to post reply"}), 500
 
 
 def setup_scheduler():
