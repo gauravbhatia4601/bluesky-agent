@@ -243,8 +243,16 @@ def main():
     # Setup scheduler
     setup_scheduler()
     
-    # Run initial timeline fetch
-    run_timeline_fetch()
+    # Start Flask dashboard FIRST before timeline fetch
+    # Run timeline fetch in background after Flask starts
+    import threading
+    def initial_fetch():
+        import time
+        time.sleep(5)  # Wait for Flask to start
+        run_timeline_fetch()
+    
+    fetch_thread = threading.Thread(target=initial_fetch, daemon=True)
+    fetch_thread.start()
     
     # Start Flask dashboard
     logger.info(f"Dashboard available at http://{DASHBOARD_HOST}:{DASHBOARD_PORT}")
