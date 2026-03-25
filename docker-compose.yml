@@ -3,20 +3,21 @@ services:
     build: .
     container_name: bluesky-agent
     restart: unless-stopped
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     environment:
       - BSKY_HANDLE=${BSKY_HANDLE}
       - BSKY_PASSWORD=${BSKY_PASSWORD}
       - DATABASE_URL=${DATABASE_URL}
       - LLM_ENDPOINT=${LLM_ENDPOINT}
       - TZ=${TZ:-UTC}
+      - PORT=${PORT:-5000}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       - coolify
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-5000}/health"]
       interval: 30s
       timeout: 10s
       retries: 3

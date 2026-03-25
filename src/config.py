@@ -42,7 +42,7 @@ SESSION_FILE = Path("/app/session.json")
 
 # Dashboard
 DASHBOARD_HOST = "0.0.0.0"
-DASHBOARD_PORT = 5000
+DASHBOARD_PORT = int(os.getenv("PORT", "5000"))
 
 # Topics to prioritize (from user request)
 TOPIC_KEYWORDS = [
