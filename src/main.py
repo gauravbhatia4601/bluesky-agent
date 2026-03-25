@@ -170,7 +170,11 @@ def api_reply():
 def setup_scheduler():
     """Setup background scheduler for timeline fetch and reply posting"""
     global scheduler
+    
+    from apscheduler.executors.threadpool import ThreadPoolExecutor
+    
     scheduler = BackgroundScheduler(timezone="UTC")
+    scheduler.add_executor(ThreadPoolExecutor())
     
     # Fetch timeline every N minutes
     scheduler.add_job(
@@ -181,19 +185,19 @@ def setup_scheduler():
         replace_existing=True
     )
     
-    # Post replies every 15 minutes (fits 50/day target)
+    # Post replies every 5 minutes
     scheduler.add_job(
         post_pending_replies,
-        trigger=IntervalTrigger(minutes=15),
+        trigger=IntervalTrigger(minutes=REPLY_INTERVAL_MINUTES),
         id="post_replies",
         name="Post pending replies",
         replace_existing=True
     )
     
-    # Create original posts every 12 hours (2/day)
+    # Create original posts every 4 hours
     scheduler.add_job(
         create_original_post,
-        trigger=IntervalTrigger(hours=12),
+        trigger=IntervalTrigger(hours=ORIGINAL_POST_INTERVAL_HOURS),
         id="original_post",
         name="Create original content",
         replace_existing=True
@@ -218,7 +222,7 @@ def setup_scheduler():
     )
     
     scheduler.start()
-    logger.info("Scheduler started with jobs: timeline_fetch, post_replies, original_post, counters")
+    logger.info(f"Scheduler started with jobs: timeline_fetch, post_replies (every {REPLY_INTERVAL_MINUTES}min), original_post, counters")
 
 
 def main():
