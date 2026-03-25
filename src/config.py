@@ -81,3 +81,10 @@ When replying:
 - Add genuine value, not just agreement or praise
 
 Write like a human who has built real products and learned from mistakes."""
+
+# Session persistence
+SESSION_FILE = Path("/app/session.json")
+
+# Dashboard
+DASHBOARD_HOST = "0.0.0.0"
+DASHBOARD_PORT = int(os.getenv("PORT", "5000"))
