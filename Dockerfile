@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies including curl for healthchecks
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -18,16 +18,14 @@ COPY templates/ ./templates/
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 
-# Ensure session.json is a file, not a directory (remove dir if exists)
-USER root
-RUN rm -rf /app/session.json && touch /app/session.json && chown appuser:appuser /app/session.json
+# Switch to non-root user
 USER appuser
 
 # Expose dashboard port
 EXPOSE 5000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+# Health check - longer start period for app initialization
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=5 \
     CMD curl -f http://localhost:5000/health || exit 1
 
 CMD ["python", "-m", "src.main"]

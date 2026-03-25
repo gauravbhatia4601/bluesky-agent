@@ -30,6 +30,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Ensure session file exists
+if not SESSION_FILE.exists():
+    try:
+        SESSION_FILE.touch()
+        logger.info(f"Created session file: {SESSION_FILE}")
+    except Exception as e:
+        logger.warning(f"Could not create session file: {e}")
+
 # Initialize Flask app
 app = Flask(__name__, template_folder="../templates")
 
