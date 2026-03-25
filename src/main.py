@@ -30,14 +30,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Ensure session file exists
-if not SESSION_FILE.exists():
-    try:
-        SESSION_FILE.touch()
-        logger.info(f"Created session file: {SESSION_FILE}")
-    except Exception as e:
-        logger.warning(f"Could not create session file: {e}")
-
 # Initialize Flask app
 app = Flask(__name__, template_folder="../templates")
 
@@ -152,11 +144,11 @@ def main():
     # Login to Bluesky
     client = BlueskyClient()
     if not client.login():
-        logger.error("Failed to login to Bluesky")
-        sys.exit(1)
+        logger.error("Failed to login to Bluesky - continuing anyway, will retry")
     
     # Add bot label to profile
-    client.label_as_bot()
+    if client:
+        client.label_as_bot()
     
     # Setup scheduler
     setup_scheduler()
