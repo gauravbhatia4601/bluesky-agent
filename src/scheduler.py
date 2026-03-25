@@ -44,7 +44,7 @@ def run_timeline_fetch():
     
     for post in posts_to_process:
         # Skip own posts
-        if post.get("author_handle") == client.session.get("handle"):
+        if client.handle and post.get("author_handle") == client.handle:
             continue
         
         # Check relevance - must contain at least one topic keyword

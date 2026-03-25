@@ -32,31 +32,32 @@ class BlueskyClient:
     def __init__(self):
         self.client = Client(BSKY_SERVICE)
         self.session = None
+        self.handle = None
         self.hourly_count = 0
         self.daily_count = 0
-        self.daily_original_posts = 0  # Track original posts per day
+        self.daily_original_posts = 0
     
     def login(self) -> bool:
         """Login to Bluesky with session persistence"""
         session_file = _ensure_session_file()
         
-        # Try to resume existing session
         if session_file.exists():
             try:
                 session_string = session_file.read_text().strip()
                 self.client.login(session_string=session_string)
                 self.session = session_string
-                logger.info("Resumed existing Bluesky session")
+                self.handle = self.client.me.handle if hasattr(self.client.me, 'handle') else BSKY_HANDLE
+                logger.info(f"Resumed existing Bluesky session for {self.handle}")
                 return True
             except Exception as e:
                 logger.warning(f"Failed to resume session: {e}, logging in fresh")
         
-        # Fresh login
         try:
             self.client.login(BSKY_HANDLE, BSKY_PASSWORD)
             self.session = self.client.export_session_string()
+            self.handle = self.client.me.handle if hasattr(self.client.me, 'handle') else BSKY_HANDLE
             self._save_session()
-            logger.info("Logged into Bluesky successfully")
+            logger.info(f"Logged into Bluesky successfully as {self.handle}")
             return True
         except Exception as e:
             logger.error(f"Failed to login: {e}")
