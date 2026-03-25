@@ -22,17 +22,17 @@ POINTS_CREATE = 3
 POINTS_UPDATE = 2
 POINTS_DELETE = 1
 
-# Posting targets (4-5 posts/day to stay under limits)
-MAX_REPLIES_PER_HOUR = 1  # ~3 points
-MAX_REPLIES_PER_DAY = 5  # ~15 points per day
-MAX_ORIGINAL_POSTS_PER_DAY = 2  # 2 original posts/day
+# Posting targets (100+ replies/day, 6 original posts/day)
+MAX_REPLIES_PER_HOUR = 10  # Allow up to 10 per hour
+MAX_REPLIES_PER_DAY = 150  # 150 replies per day max
+MAX_ORIGINAL_POSTS_PER_DAY = 6  # 6 original posts per day
 
 # Scheduling
-TIMELINE_FETCH_INTERVAL_MINUTES = 60  # Fetch every hour
-POST_DELAY_MIN_SECONDS = 60  # More natural spacing
+TIMELINE_FETCH_INTERVAL_MINUTES = 30  # Generate replies every 30 min
+POST_DELAY_MIN_SECONDS = 60
 POST_DELAY_MAX_SECONDS = 180
-REPLY_INTERVAL_MINUTES = 240  # Post 1 reply every 4 hours (fits 5-6/day)
-ORIGINAL_POST_INTERVAL_HOURS = 12  # Post original content every 12 hours
+REPLY_INTERVAL_MINUTES = 15  # Post replies every 15 minutes (96/day)
+ORIGINAL_POST_INTERVAL_HOURS = 4  # Post original content every 4 hours (6/day)
 
 # Engagement settings
 AUTO_LIKE_ON_REPLY = True  # Like every post we reply to
