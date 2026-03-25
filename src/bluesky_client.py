@@ -91,20 +91,61 @@ class BlueskyClient:
         )
     
     def get_timeline(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Fetch timeline posts"""
+        """Fetch timeline posts using raw HTTP with proper auth"""
         try:
-            # Use the client method directly without passing dict
-            response = self.client.get_timeline(limit=limit)
-            posts = []
+            import requests
             
-            for item in response.feed:
+            # Extract access token from session
+            session_info = self.client._session
+            access_jwt = None
+            
+            if session_info:
+                if hasattr(session_info, 'accessJwt'):
+                    access_jwt = session_info.accessJwt
+                elif hasattr(session_info, 'access_jwt'):
+                    access_jwt = session_info.access_jwt
+            
+            if not access_jwt:
+                logger.warning("No access token available, logging in...")
+                self.login()
+                session_info = self.client._session
+                if hasattr(session_info, 'accessJwt'):
+                    access_jwt = session_info.accessJwt
+                elif hasattr(session_info, 'access_jwt'):
+                    access_jwt = session_info.access_jwt
+            
+            if not access_jwt:
+                logger.error("Failed to get access token")
+                return []
+            
+            headers = {
+                "Authorization": f"Bearer {access_jwt}",
+                "Content-Type": "application/json"
+            }
+            
+            params = {"limit": limit}
+            response = requests.get(
+                f"{BSKY_SERVICE}/xrpc/app.bsky.feed.getTimeline",
+                headers=headers,
+                params=params
+            )
+            
+            response.raise_for_status()
+            data = response.json()
+            
+            posts = []
+            for item in data.get("feed", []):
+                post_data = item.get("post", {})
+                author = post_data.get("author", {})
+                record = post_data.get("record", {})
+                
                 post = {
-                    "uri": item.post.uri,
-                    "cid": item.post.cid,
-                    "text": item.post.record.text if hasattr(item.post, "record") else "",
-                    "author_handle": item.post.author.handle,
-                    "author_did": item.post.author.did,
-                    "indexed_at": item.post.indexed_at
+                    "uri": post_data.get("uri", ""),
+                    "cid": post_data.get("cid", ""),
+                    "text": record.get("text", "") if isinstance(record, dict) else "",
+                    "author_handle": author.get("handle", ""),
+                    "author_did": author.get("did", ""),
+                    "indexed_at": post_data.get("indexedAt", "")
                 }
                 posts.append(post)
             
