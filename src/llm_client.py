@@ -61,6 +61,7 @@ Reply:"""
         for attempt in range(max_retries):
             try:
                 logger.info(f"Calling LLM {self.model} (attempt {attempt + 1}/{max_retries})...")
+                logger.info(f"Prompt: {prompt[:200]}...")
                 
                 response = requests.post(
                     f"{self.endpoint}/api/generate",
@@ -77,12 +78,18 @@ Reply:"""
                     timeout=self.timeout
                 )
                 
+                logger.info(f"LLM response status: {response.status_code}")
+                logger.info(f"LLM response headers: {dict(response.headers)}")
+                logger.info(f"LLM raw response body: {response.text[:1000]}")
+                
                 if response.status_code == 404:
                     logger.error(f"Model '{self.model}' not found at {self.endpoint}")
+                    logger.error(f"Full response: {response.text}")
                     return None
                 
                 if response.status_code != 200:
                     logger.error(f"LLM request failed: {response.status_code}")
+                    logger.error(f"Full response: {response.text}")
                     if attempt < max_retries - 1:
                         logger.info(f"Retrying in 2 seconds...")
                         time.sleep(2)
@@ -90,23 +97,29 @@ Reply:"""
                     return None
                 
                 data = response.json()
+                logger.info(f"LLM JSON response keys: {data.keys()}")
+                logger.info(f"LLM JSON 'response' field: '{data.get('response', 'NOT FOUND')}'")
+                logger.info(f"LLM JSON 'done' field: {data.get('done', 'NOT FOUND')}")
+                logger.info(f"LLM JSON full data: {data}")
+                
                 reply_text = data.get("response", "").strip()
                 
                 if not reply_text:
                     logger.warning(f"Empty response from LLM model {self.model}")
+                    logger.warning(f"Full response data: {data}")
                     if attempt < max_retries - 1:
                         logger.info(f"Retrying in 2 seconds...")
                         time.sleep(2)
                         continue
                     return None
                 
-                logger.info(f"LLM raw response: {reply_text[:200]}...")
+                logger.info(f"LLM generated text (before clean): {reply_text[:200]}...")
                 
                 # Clean up the reply
                 reply_text = self._clean_reply(reply_text, max_length)
                 
                 if reply_text and len(reply_text) >= 10:
-                    logger.info(f"Generated reply: {reply_text[:80]}...")
+                    logger.info(f"Generated reply (after clean): {reply_text[:80]}...")
                     return reply_text
                 else:
                     logger.warning(f"Reply too short or empty after cleaning: '{reply_text}'")
