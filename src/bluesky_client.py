@@ -73,18 +73,12 @@ class BlueskyClient:
     def label_as_bot(self):
         """Add bot label to profile for transparency"""
         try:
-            profile = self.client.get_profile({"actor": self.client.me.did})
-            # Check if already labeled
+            profile = self.client.get_profile(actor=self.client.me.did)
             if hasattr(profile, "labels") and profile.labels:
                 for label in profile.labels:
                     if hasattr(label, "val") and label.val == "bot":
                         logger.info("Profile already labeled as bot")
                         return
-            
-            # Add self-label (this is done via profile update)
-            # Note: The atproto SDK handles this differently
-            # For now, we'll just log it - proper labeling requires
-            # updating the profile record directly
             logger.info("Bot labeling will be applied during profile operations")
         except Exception as e:
             logger.warning(f"Could not check bot label: {e}")
@@ -99,7 +93,8 @@ class BlueskyClient:
     def get_timeline(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Fetch timeline posts"""
         try:
-            response = self.client.get_timeline({"limit": limit})
+            # Use the client method directly without passing dict
+            response = self.client.get_timeline(limit=limit)
             posts = []
             
             for item in response.feed:
