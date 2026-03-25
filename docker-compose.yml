@@ -13,8 +13,6 @@ services:
       - TZ=${TZ:-UTC}
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    volumes:
-      - ./session.json:/app/session.json
     networks:
       - coolify
     healthcheck:
