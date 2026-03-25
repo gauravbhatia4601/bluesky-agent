@@ -50,18 +50,19 @@ class LLMClient:
 {f"Context: {context}" if context else ""}
 
 Write a thoughtful, conversational reply (under {max_length} characters).
-- Match the tone and style of the original post
-- Offer specific insights or ask follow-up questions
-- Be authentic and opinionated when appropriate
+- Do NOT use any emojis
+- Use simple everyday language
+- Avoid dashes or bullet points
+- Write in complete sentences
+- Share specific technical insights
+- Be direct and opinionated
 - Never mention being an AI
-- Keep it concise and engaging
 
 Reply:"""
 
         for attempt in range(max_retries):
             try:
                 logger.info(f"Calling LLM {self.model} (attempt {attempt + 1}/{max_retries})...")
-                logger.info(f"Prompt: {prompt[:200]}...")
                 
                 response = requests.post(
                     f"{self.endpoint}/api/generate",
@@ -79,8 +80,6 @@ Reply:"""
                 )
                 
                 logger.info(f"LLM response status: {response.status_code}")
-                logger.info(f"LLM response headers: {dict(response.headers)}")
-                logger.info(f"LLM raw response body: {response.text[:1000]}")
                 
                 if response.status_code == 404:
                     logger.error(f"Model '{self.model}' not found at {self.endpoint}")
@@ -97,9 +96,6 @@ Reply:"""
                     return None
                 
                 data = response.json()
-                logger.info(f"LLM JSON response keys: {data.keys()}")
-                logger.info(f"LLM JSON 'response' field: '{data.get('response', 'NOT FOUND')}'")
-                logger.info(f"LLM JSON 'done' field: {data.get('done', 'NOT FOUND')}")
                 logger.info(f"LLM JSON full data: {data}")
                 
                 reply_text = data.get("response", "").strip()
