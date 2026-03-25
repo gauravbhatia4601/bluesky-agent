@@ -41,6 +41,8 @@ def run_timeline_fetch():
     
     # Generate replies for relevant posts
     replies_added = 0
+    posts_filtered = 0
+    llm_errors = 0
     
     for post in posts_to_process:
         # Skip own posts
@@ -52,34 +54,41 @@ def run_timeline_fetch():
         is_relevant = any(kw.lower() in post_text for kw in TOPIC_KEYWORDS)
         
         if not is_relevant:
+            posts_filtered += 1
             continue
         
         # Generate reply
+        logger.debug(f"Generating reply for post by @{post.get('author_handle')}: {post_text[:50]}...")
         reply_text = llm.generate_reply(
             post_text=post.get("text", ""),
             author_handle=post.get("author_handle", ""),
             context=f"Post from timeline"
         )
         
-        if reply_text:
-            # Score the reply
-            score = llm.score_reply(reply_text, post.get("text", ""))
-            
-            # Only queue if score is good enough
-            if score >= 0.5:
-                success = add_reply(
-                    post_uri=post["uri"],
-                    post_cid=post["cid"],
-                    post_text=post["text"],
-                    post_author=post["author_handle"],
-                    reply_text=reply_text,
-                    quality_score=int(score * 100)
-                )
-                if success:
-                    replies_added += 1
-                    logger.debug(f"Queued reply for post by {post['author_handle']}")
+        if not reply_text:
+            llm_errors += 1
+            continue
+        
+        # Score the reply
+        score = llm.score_reply(reply_text, post.get("text", ""))
+        
+        # Only queue if score is good enough
+        if score >= 0.5:
+            success = add_reply(
+                post_uri=post["uri"],
+                post_cid=post["cid"],
+                post_text=post["text"],
+                post_author=post["author_handle"],
+                reply_text=reply_text,
+                quality_score=int(score * 100)
+            )
+            if success:
+                replies_added += 1
+                logger.debug(f"Queued reply for post by {post['author_handle']}")
+        else:
+            logger.debug(f"Reply score too low ({score}): {reply_text[:50]}...")
     
-    logger.info(f"Added {replies_added} replies to queue")
+    logger.info(f"Timeline fetch complete: {replies_added} replies added, {posts_filtered} posts filtered, {llm_errors} LLM errors")
 
 
 def post_pending_replies():

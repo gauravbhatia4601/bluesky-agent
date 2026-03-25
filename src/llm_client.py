@@ -37,30 +37,38 @@ class LLMClient:
     ) -> Optional[str]:
         """Generate a human-like reply to a post"""
         
+        # Check if endpoint is available first
+        if not self._check_endpoint_available():
+            logger.warning(f"LLM endpoint {self.endpoint} not available")
+            return None
+        
         prompt = f"""Post by @{author_handle}:
 "{post_text}"
 
 {f"Context: {context}" if context else ""}
 
-Generate a brief, natural, insightful reply (under {max_length} characters).
-Be conversational and authentic. Match the tone of the original post.
-Avoid generic phrases. Offer specific insights or ask thoughtful questions.
-Do not mention you are an AI or bot.
+Write a thoughtful, conversational reply (under {max_length} characters).
+- Match the tone and style of the original post
+- Offer specific insights or ask follow-up questions
+- Be authentic and opinionated when appropriate
+- Never mention being an AI
+- Keep it concise and engaging
 
 Reply:"""
 
         try:
+            logger.info(f"Calling LLM {self.model} for reply generation...")
+            
             response = requests.post(
                 f"{self.endpoint}/api/generate",
                 json={
                     "model": self.model,
                     "prompt": prompt,
-                    "system": SYSTEM_PROMPT,
                     "stream": False,
                     "options": {
                         "temperature": 0.8,
                         "top_p": 0.9,
-                        "num_predict": 100
+                        "num_predict": 150
                     }
                 },
                 timeout=self.timeout
@@ -70,24 +78,36 @@ Reply:"""
                 data = response.json()
                 reply_text = data.get("response", "").strip()
                 
+                if not reply_text:
+                    logger.warning(f"Empty response from LLM model {self.model}")
+                    return None
+                
+                logger.info(f"LLM raw response: {reply_text[:200]}...")
+                
                 # Clean up the reply
                 reply_text = self._clean_reply(reply_text, max_length)
                 
-                if reply_text:
-                    logger.debug(f"Generated reply: {reply_text[:50]}...")
+                if reply_text and len(reply_text) >= 10:
+                    logger.info(f"Generated reply: {reply_text[:80]}...")
                     return reply_text
                 else:
-                    logger.warning("Empty reply generated")
+                    logger.warning(f"Reply too short or empty after cleaning: '{reply_text}'")
                     return None
             else:
                 logger.error(f"LLM request failed: {response.status_code}")
+                logger.error(f"Response: {response.text[:500]}")
                 return None
                 
         except requests.exceptions.Timeout:
-            logger.error("LLM request timed out")
+            logger.error(f"LLM request timed out after {self.timeout}s")
+            return None
+        except requests.exceptions.ConnectionError:
+            logger.error(f"Cannot connect to LLM endpoint: {self.endpoint}")
             return None
         except Exception as e:
             logger.error(f"LLM error: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return None
     
     def generate_multiple_options(
