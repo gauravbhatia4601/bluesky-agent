@@ -17,6 +17,10 @@ COPY templates/ ./templates/
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+
+# Ensure session.json is a file, not a directory (remove dir if exists)
+USER root
+RUN rm -rf /app/session.json && touch /app/session.json && chown appuser:appuser /app/session.json
 USER appuser
 
 # Expose dashboard port

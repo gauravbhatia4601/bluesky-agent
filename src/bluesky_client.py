@@ -18,6 +18,15 @@ from config import (
 logger = logging.getLogger(__name__)
 
 
+def _ensure_session_file() -> Path:
+    """Ensure session.json is a file, not a directory. Remove directory if found."""
+    if SESSION_FILE.is_dir():
+        logger.warning(f"{SESSION_FILE} is a directory, removing and creating file")
+        import shutil
+        shutil.rmtree(SESSION_FILE)
+    return SESSION_FILE
+
+
 class BlueskyClient:
     """Bluesky client with session persistence and rate limit awareness"""
     
@@ -30,10 +39,12 @@ class BlueskyClient:
     
     def login(self) -> bool:
         """Login to Bluesky with session persistence"""
+        session_file = _ensure_session_file()
+        
         # Try to resume existing session
-        if SESSION_FILE.exists():
+        if session_file.exists():
             try:
-                session_data = json.loads(SESSION_FILE.read_text())
+                session_data = json.loads(session_file.read_text())
                 self.client.resume_session(session_data)
                 self.session = session_data
                 logger.info("Resumed existing Bluesky session")
@@ -60,7 +71,8 @@ class BlueskyClient:
     def _save_session(self):
         """Persist session to disk"""
         if self.session:
-            SESSION_FILE.write_text(json.dumps(self.session, indent=2))
+            session_file = _ensure_session_file()
+            session_file.write_text(json.dumps(self.session, indent=2))
             logger.debug("Session saved to disk")
     
     def label_as_bot(self):
