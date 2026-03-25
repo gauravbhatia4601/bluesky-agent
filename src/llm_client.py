@@ -4,6 +4,7 @@ LLM client for generating human-like replies
 
 import json
 import logging
+import time
 import requests
 from typing import Optional, List
 
@@ -33,7 +34,8 @@ class LLMClient:
         post_text: str,
         author_handle: str,
         context: Optional[str] = None,
-        max_length: int = 280
+        max_length: int = 280,
+        max_retries: int = 2
     ) -> Optional[str]:
         """Generate a human-like reply to a post"""
         
@@ -56,30 +58,46 @@ Write a thoughtful, conversational reply (under {max_length} characters).
 
 Reply:"""
 
-        try:
-            logger.info(f"Calling LLM {self.model} for reply generation...")
-            
-            response = requests.post(
-                f"{self.endpoint}/api/generate",
-                json={
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.8,
-                        "top_p": 0.9,
-                        "num_predict": 150
-                    }
-                },
-                timeout=self.timeout
-            )
-            
-            if response.status_code == 200:
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Calling LLM {self.model} (attempt {attempt + 1}/{max_retries})...")
+                
+                response = requests.post(
+                    f"{self.endpoint}/api/generate",
+                    json={
+                        "model": self.model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "options": {
+                            "temperature": 0.8,
+                            "top_p": 0.9,
+                            "num_predict": 150
+                        }
+                    },
+                    timeout=self.timeout
+                )
+                
+                if response.status_code == 404:
+                    logger.error(f"Model '{self.model}' not found at {self.endpoint}")
+                    return None
+                
+                if response.status_code != 200:
+                    logger.error(f"LLM request failed: {response.status_code}")
+                    if attempt < max_retries - 1:
+                        logger.info(f"Retrying in 2 seconds...")
+                        time.sleep(2)
+                        continue
+                    return None
+                
                 data = response.json()
                 reply_text = data.get("response", "").strip()
                 
                 if not reply_text:
                     logger.warning(f"Empty response from LLM model {self.model}")
+                    if attempt < max_retries - 1:
+                        logger.info(f"Retrying in 2 seconds...")
+                        time.sleep(2)
+                        continue
                     return None
                 
                 logger.info(f"LLM raw response: {reply_text[:200]}...")
@@ -92,23 +110,33 @@ Reply:"""
                     return reply_text
                 else:
                     logger.warning(f"Reply too short or empty after cleaning: '{reply_text}'")
+                    if attempt < max_retries - 1:
+                        logger.info(f"Retrying in 2 seconds...")
+                        time.sleep(2)
+                        continue
                     return None
-            else:
-                logger.error(f"LLM request failed: {response.status_code}")
-                logger.error(f"Response: {response.text[:500]}")
+                    
+            except requests.exceptions.Timeout:
+                logger.error(f"LLM request timed out after {self.timeout}s")
+                if attempt < max_retries - 1:
+                    logger.info(f"Retrying in 2 seconds...")
+                    time.sleep(2)
+                    continue
                 return None
-                
-        except requests.exceptions.Timeout:
-            logger.error(f"LLM request timed out after {self.timeout}s")
-            return None
-        except requests.exceptions.ConnectionError:
-            logger.error(f"Cannot connect to LLM endpoint: {self.endpoint}")
-            return None
-        except Exception as e:
-            logger.error(f"LLM error: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            return None
+            except requests.exceptions.ConnectionError:
+                logger.error(f"Cannot connect to LLM endpoint: {self.endpoint}")
+                return None
+            except Exception as e:
+                logger.error(f"LLM error: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                if attempt < max_retries - 1:
+                    logger.info(f"Retrying in 2 seconds...")
+                    time.sleep(2)
+                    continue
+                return None
+        
+        return None
     
     def generate_multiple_options(
         self,

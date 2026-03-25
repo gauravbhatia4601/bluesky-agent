@@ -28,11 +28,15 @@ MAX_REPLIES_PER_DAY = 150  # 150 replies per day max
 MAX_ORIGINAL_POSTS_PER_DAY = 6  # 6 original posts per day
 
 # Scheduling
-TIMELINE_FETCH_INTERVAL_MINUTES = 30  # Generate replies every 30 min
+TIMELINE_FETCH_INTERVAL_MINUTES = 10  # Generate replies every 10 min
 POST_DELAY_MIN_SECONDS = 60
 POST_DELAY_MAX_SECONDS = 180
 REPLY_INTERVAL_MINUTES = 15  # Post replies every 15 minutes (96/day)
 ORIGINAL_POST_INTERVAL_HOURS = 4  # Post original content every 4 hours (6/day)
+
+# LLM settings
+LLM_REQUEST_DELAY_SECONDS = 5  # Delay between LLM requests
+MAX_REPLIES_PER_GENERATION = 5  # Max replies to generate per fetch
 
 # Engagement settings
 AUTO_LIKE_ON_REPLY = True  # Like every post we reply to

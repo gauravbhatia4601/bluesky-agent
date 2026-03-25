@@ -4,6 +4,7 @@ Scheduler jobs for timeline fetch, reply posting, and original content
 
 import random
 import logging
+import time
 from datetime import datetime
 
 from bluesky_client import get_client
@@ -12,7 +13,7 @@ from models import add_reply, mark_posted, mark_failed, get_pending_queue, add_o
 from config import (
     POST_DELAY_MIN_SECONDS, POST_DELAY_MAX_SECONDS,
     MAX_REPLIES_PER_HOUR, MAX_REPLIES_PER_DAY, MAX_ORIGINAL_POSTS_PER_DAY,
-    AUTO_LIKE_ON_REPLY, TOPIC_KEYWORDS
+    AUTO_LIKE_ON_REPLY, TOPIC_KEYWORDS, LLM_REQUEST_DELAY_SECONDS, MAX_REPLIES_PER_GENERATION
 )
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,11 @@ def run_timeline_fetch():
     llm_errors = 0
     
     for post in posts_to_process:
+        # Stop if we've generated enough replies
+        if replies_added >= MAX_REPLIES_PER_GENERATION:
+            logger.info(f"Reached max replies per generation ({MAX_REPLIES_PER_GENERATION}), stopping")
+            break
+        
         # Skip own posts
         if client.handle and post.get("author_handle") == client.handle:
             continue
@@ -65,7 +71,7 @@ def run_timeline_fetch():
             posts_filtered += 1
             continue
         
-        # Generate reply
+        # Generate reply with delay between requests
         logger.debug(f"Generating reply for post by @{post.get('author_handle')}: {post_text[:50]}...")
         reply_text = llm.generate_reply(
             post_text=post.get("text", ""),
@@ -93,6 +99,11 @@ def run_timeline_fetch():
             if success:
                 replies_added += 1
                 logger.debug(f"Queued reply for post by {post['author_handle']}")
+                
+                # Add delay between LLM requests to avoid rate limiting
+                if replies_added < MAX_REPLIES_PER_GENERATION:
+                    logger.debug(f"Waiting {LLM_REQUEST_DELAY_SECONDS}s before next LLM request...")
+                    time.sleep(LLM_REQUEST_DELAY_SECONDS)
         else:
             logger.debug(f"Reply score too low ({score}): {reply_text[:50]}...")
     
