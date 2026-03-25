@@ -11,7 +11,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///bluesky.db")
 
 # LLM endpoint
 LLM_ENDPOINT = os.getenv("LLM_ENDPOINT", "http://host.docker.internal:11434")
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-oss:120b-cloud")
+LLM_MODEL = os.getenv("LLM_MODEL", "qwen3.5:cloud")
 
 # Rate limits (points per hour/day from docs)
 RATE_LIMIT_POINTS_PER_HOUR = 5000
@@ -28,7 +28,7 @@ MAX_REPLIES_PER_DAY = 150  # 150 replies per day max
 MAX_ORIGINAL_POSTS_PER_DAY = 6  # 6 original posts per day
 
 # Scheduling
-TIMELINE_FETCH_INTERVAL_MINUTES = 10  # Generate replies every 10 min
+TIMELINE_FETCH_INTERVAL_MINUTES = 2  # Generate replies every 2 min
 POST_DELAY_MIN_SECONDS = 60
 POST_DELAY_MAX_SECONDS = 180
 REPLY_INTERVAL_MINUTES = 15  # Post replies every 15 minutes (96/day)
