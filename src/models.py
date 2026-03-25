@@ -233,7 +233,7 @@ def get_pending_queue() -> List[Dict[str, Any]]:
     try:
         pending = session.query(Reply).filter(
             Reply.reply_status == "pending"
-        ).order_by(Reply.created_at).limit(20).all()
+        ).order_by(Reply.created_at).limit(100).all()
         
         return [
             {
