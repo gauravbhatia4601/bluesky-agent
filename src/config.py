@@ -31,7 +31,7 @@ MAX_ORIGINAL_POSTS_PER_DAY = 6  # 6 original posts per day
 TIMELINE_FETCH_INTERVAL_MINUTES = 30  # Generate replies every 30 min
 POST_DELAY_MIN_SECONDS = 60
 POST_DELAY_MAX_SECONDS = 180
-REPLY_INTERVAL_MINUTES = 15  # Post replies every 15 minutes
+REPLY_INTERVAL_MINUTES = 5  # Post replies every 5 minutes (5 at a time)
 ORIGINAL_POST_INTERVAL_HOURS = 4  # Post original content every 4 hours (6/day)
 
 # LLM settings
