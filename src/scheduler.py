@@ -20,16 +20,24 @@ logger = logging.getLogger(__name__)
 
 def run_timeline_fetch():
     """Fetch timeline and generate replies"""
-    logger.info("Running timeline fetch...")
+    logger.info("=== TIMELINE FETCH JOB STARTING ===")
     
     client = get_client()
+    if not client:
+        logger.error("No client available - cannot fetch timeline")
+        return
+    
     llm = get_llm_client()
     
     # Get timeline posts
+    logger.info("Fetching timeline posts...")
     timeline_posts = client.get_timeline(limit=50)
+    logger.info(f"Got {len(timeline_posts)} timeline posts")
     
     # Get topic-based posts
+    logger.info("Fetching topic posts...")
     topic_posts = client.get_topic_posts()
+    logger.info(f"Got {len(topic_posts)} topic posts")
     
     # Combine and deduplicate
     all_posts = {}
@@ -88,14 +96,19 @@ def run_timeline_fetch():
         else:
             logger.debug(f"Reply score too low ({score}): {reply_text[:50]}...")
     
-    logger.info(f"Timeline fetch complete: {replies_added} replies added, {posts_filtered} posts filtered, {llm_errors} LLM errors")
+    logger.info(f"=== TIMELINE FETCH COMPLETE: {replies_added} replies added, {posts_filtered} posts filtered, {llm_errors} LLM errors ===")
 
 
 def post_pending_replies():
     """Post pending replies with natural delays + auto-like"""
-    logger.info("Posting pending replies...")
+    logger.info("=== POST PENDING REPLIES JOB STARTING ===")
     
     client = get_client()
+    if not client:
+        logger.error("No client available - cannot post replies")
+        return
+    
+    logger.info(f"Client rate limits - hourly: {client.hourly_count}/{MAX_REPLIES_PER_HOUR}, daily: {client.daily_count}/{MAX_REPLIES_PER_DAY}")
     
     # Check rate limit
     if not client.can_post():
@@ -105,37 +118,46 @@ def post_pending_replies():
     # Get pending queue
     pending = get_pending_queue()
     
+    logger.info(f"Pending queue length: {len(pending)}")
+    
     if not pending:
-        logger.info("No pending replies in queue")
+        logger.info("No pending replies in queue - nothing to post")
         return
     
     logger.info(f"Found {len(pending)} pending replies in queue")
     
     # Post first reply in queue
     reply_data = pending[0]
-    logger.info(f"Posting reply to @{reply_data['post_author']}: {reply_data['reply_text'][:50]}...")
+    logger.info(f"Attempting to post reply ID {reply_data['id']} to @{reply_data['post_author']}")
+    logger.info(f"Reply text: {reply_data['reply_text'][:100]}...")
     
     # Actually post
-    reply_uri = client.post_reply(
-        parent_uri=reply_data["post_uri"],
-        parent_cid=reply_data["post_cid"],
-        text=reply_data["reply_text"]
-    )
-    
-    if reply_uri:
-        mark_posted(reply_data["id"], reply_uri)
-        logger.info(f"Successfully posted reply: {reply_uri}")
+    try:
+        reply_uri = client.post_reply(
+            parent_uri=reply_data["post_uri"],
+            parent_cid=reply_data["post_cid"],
+            text=reply_data["reply_text"]
+        )
         
-        # Auto-like the original post after replying
-        if AUTO_LIKE_ON_REPLY:
-            try:
-                client.like_post(reply_data["post_uri"], reply_data["post_cid"])
-                logger.info(f"Liked original post: {reply_data['post_uri']}")
-            except Exception as e:
-                logger.warning(f"Could not like post: {e}")
-    else:
+        if reply_uri:
+            mark_posted(reply_data["id"], reply_uri)
+            logger.info(f"✓ Successfully posted reply: {reply_uri}")
+            
+            # Auto-like the original post after replying
+            if AUTO_LIKE_ON_REPLY:
+                try:
+                    client.like_post(reply_data["post_uri"], reply_data["post_cid"])
+                    logger.info(f"✓ Liked original post")
+                except Exception as e:
+                    logger.warning(f"Could not like post: {e}")
+        else:
+            mark_failed(reply_data["id"])
+            logger.error(f"✗ Failed to post reply ID {reply_data['id']}: post_reply returned None")
+    except Exception as e:
+        logger.error(f"✗ Exception posting reply: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         mark_failed(reply_data["id"])
-        logger.error(f"Failed to post reply ID {reply_data['id']}: reply_uri was None")
 
 
 def create_original_post():

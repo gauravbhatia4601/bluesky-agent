@@ -132,13 +132,18 @@ class BlueskyClient:
             }
             
             params = {"limit": limit}
+            logger.debug(f"Fetching timeline with limit={limit}")
+            
             response = requests.get(
                 f"{BSKY_SERVICE}/xrpc/app.bsky.feed.getTimeline",
                 headers=headers,
                 params=params
             )
             
-            response.raise_for_status()
+            if response.status_code != 200:
+                logger.error(f"Timeline fetch failed: {response.status_code} - {response.text[:500]}")
+                return []
+            
             data = response.json()
             
             posts = []
@@ -161,6 +166,8 @@ class BlueskyClient:
             return posts
         except Exception as e:
             logger.error(f"Failed to fetch timeline: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
     
     def search_posts(self, query: str, limit: int = 25) -> List[Dict[str, Any]]:
