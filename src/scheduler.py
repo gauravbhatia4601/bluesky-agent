@@ -99,18 +99,21 @@ def post_pending_replies():
     
     # Check rate limit
     if not client.can_post():
-        logger.warning("Rate limit reached, skipping post")
+        logger.warning(f"Rate limit reached (hourly: {client.hourly_count}/{MAX_REPLIES_PER_HOUR}, daily: {client.daily_count}/{MAX_REPLIES_PER_DAY}), skipping post")
         return
     
     # Get pending queue
     pending = get_pending_queue()
     
     if not pending:
-        logger.debug("No pending replies")
+        logger.info("No pending replies in queue")
         return
+    
+    logger.info(f"Found {len(pending)} pending replies in queue")
     
     # Post first reply in queue
     reply_data = pending[0]
+    logger.info(f"Posting reply to @{reply_data['post_author']}: {reply_data['reply_text'][:50]}...")
     
     # Actually post
     reply_uri = client.post_reply(
@@ -132,7 +135,7 @@ def post_pending_replies():
                 logger.warning(f"Could not like post: {e}")
     else:
         mark_failed(reply_data["id"])
-        logger.error(f"Failed to post reply: {reply_data['id']}")
+        logger.error(f"Failed to post reply ID {reply_data['id']}: reply_uri was None")
 
 
 def create_original_post():

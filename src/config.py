@@ -11,7 +11,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///bluesky.db")
 
 # LLM endpoint
 LLM_ENDPOINT = os.getenv("LLM_ENDPOINT", "http://host.docker.internal:11434")
-LLM_MODEL = os.getenv("LLM_MODEL", "llama3.2:3b")  # Better model for reasoning
+LLM_MODEL = os.getenv("LLM_MODEL", "deepseekv3.2")  # DeepSeek cloud model
 
 # Rate limits (points per hour/day from docs)
 RATE_LIMIT_POINTS_PER_HOUR = 5000
@@ -22,16 +22,16 @@ POINTS_CREATE = 3
 POINTS_UPDATE = 2
 POINTS_DELETE = 1
 
-# Posting targets (start conservative to avoid flags)
-MAX_REPLIES_PER_HOUR = 8  # ~24 points
-MAX_REPLIES_PER_DAY = 50  # ~150 points
-MAX_ORIGINAL_POSTS_PER_DAY = 2  # 2 posts/day
+# Posting targets (4-5 posts/day to stay under limits)
+MAX_REPLIES_PER_HOUR = 1  # ~3 points
+MAX_REPLIES_PER_DAY = 5  # ~15 points per day
+MAX_ORIGINAL_POSTS_PER_DAY = 2  # 2 original posts/day
 
 # Scheduling
-TIMELINE_FETCH_INTERVAL_MINUTES = 30  # Fetch every 30 min
+TIMELINE_FETCH_INTERVAL_MINUTES = 60  # Fetch every hour
 POST_DELAY_MIN_SECONDS = 60  # More natural spacing
 POST_DELAY_MAX_SECONDS = 180
-REPLY_INTERVAL_MINUTES = 15  # Post 1 reply every 15 min (fits 50/day)
+REPLY_INTERVAL_MINUTES = 240  # Post 1 reply every 4 hours (fits 5-6/day)
 ORIGINAL_POST_INTERVAL_HOURS = 12  # Post original content every 12 hours
 
 # Engagement settings
