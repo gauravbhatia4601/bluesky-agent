@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from flask import Flask, render_template, jsonify, request
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from apscheduler.executors.threadpool import ThreadPoolExecutor
+from apscheduler.executors.pool import ThreadPoolExecutor
 
 from config import (
     DASHBOARD_HOST, DASHBOARD_PORT, SESSION_FILE,
