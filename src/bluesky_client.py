@@ -121,16 +121,16 @@ class BlueskyClient:
     def search_posts(self, query: str, limit: int = 25) -> List[Dict[str, Any]]:
         """Search for posts by keyword"""
         try:
-            from atproto import SessionInfo
             import requests
             
             session_info = self.client._session
-            if session_info and hasattr(session_info, 'accessJwt'):
-                access_jwt = session_info.accessJwt
-            elif session_info and hasattr(session_info, 'access_jwt'):
-                access_jwt = session_info.access_jwt
-            else:
-                access_jwt = None
+            access_jwt = None
+            
+            if session_info:
+                if hasattr(session_info, 'accessJwt'):
+                    access_jwt = session_info.accessJwt
+                elif hasattr(session_info, 'access_jwt'):
+                    access_jwt = session_info.access_jwt
             
             if not access_jwt:
                 self.login()
