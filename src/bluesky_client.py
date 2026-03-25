@@ -2,7 +2,6 @@
 Bluesky API client with session persistence
 """
 
-import json
 import logging
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -44,9 +43,9 @@ class BlueskyClient:
         # Try to resume existing session
         if session_file.exists():
             try:
-                session_data = json.loads(session_file.read_text())
-                self.client.resume_session(session_data)
-                self.session = session_data
+                session_string = session_file.read_text().strip()
+                self.client.login(session_string=session_string)
+                self.session = session_string
                 logger.info("Resumed existing Bluesky session")
                 return True
             except Exception as e:
@@ -55,12 +54,7 @@ class BlueskyClient:
         # Fresh login
         try:
             self.client.login(BSKY_HANDLE, BSKY_PASSWORD)
-            self.session = {
-                "handle": BSKY_HANDLE,
-                "did": self.client.me.did,
-                "accessJwt": self.client._session.access_jwt,
-                "refreshJwt": self.client._session.refresh_jwt
-            }
+            self.session = self.client.export_session_string()
             self._save_session()
             logger.info("Logged into Bluesky successfully")
             return True
@@ -72,7 +66,7 @@ class BlueskyClient:
         """Persist session to disk"""
         if self.session:
             session_file = _ensure_session_file()
-            session_file.write_text(json.dumps(self.session, indent=2))
+            session_file.write_text(self.session)
             logger.debug("Session saved to disk")
     
     def label_as_bot(self):
