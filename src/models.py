@@ -7,11 +7,12 @@ import logging
 import time
 from datetime import datetime
 from typing import Optional, List, Dict, Any
+from urllib.parse import urlparse
 
 from sqlalchemy import create_engine, Column, String, DateTime, Integer, Text, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from config import DATABASE_URL
 
@@ -94,9 +95,50 @@ engine = None
 SessionLocal = None
 
 
+def _create_database_if_not_exists(database_url: str) -> bool:
+    """Create the database if it doesn't exist (PostgreSQL only)"""
+    if not database_url.startswith("postgresql"):
+        return True
+    
+    try:
+        import psycopg2
+    except ImportError:
+        logger.warning("psycopg2 not installed, skipping database creation check")
+        return True
+    
+    parsed = urlparse(database_url)
+    db_name = parsed.path.lstrip("/")
+    
+    base_url = database_url.rsplit("/", 1)[0] + "/postgres"
+    
+    try:
+        conn = psycopg2.connect(base_url)
+        conn.autocommit = True
+        cursor = conn.cursor()
+        
+        cursor.execute(f"SELECT 1 FROM pg_database WHERE datname = '{db_name}'")
+        exists = cursor.fetchone()
+        
+        if not exists:
+            logger.info(f"Creating database '{db_name}'...")
+            cursor.execute(f'CREATE DATABASE "{db_name}"')
+            logger.info(f"Database '{db_name}' created successfully")
+        
+        cursor.close()
+        conn.close()
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to create database: {e}")
+        return False
+
+
 def init_db(max_retries=5, retry_delay=2):
     """Initialize database connection with retry logic"""
     global engine, SessionLocal
+    
+    if DATABASE_URL.startswith("postgresql"):
+        _create_database_if_not_exists(DATABASE_URL)
     
     engine = create_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
     
