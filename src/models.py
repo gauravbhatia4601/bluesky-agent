@@ -256,9 +256,16 @@ def add_reply(post_uri: str, post_cid: str, post_text: str,
     """Add a new reply to the queue"""
     session = get_session()
     try:
-        # Check if already exists
+        # Check if we already replied to this post
         existing = session.query(Reply).filter(Reply.post_uri == post_uri).first()
         if existing:
+            logger.debug(f"Already have reply for post {post_uri}")
+            return False
+        
+        # Check if post was marked as processed/skipped
+        post_exists = session.query(Post).filter(Post.uri == post_uri).first()
+        if post_exists and (post_exists.processed or post_exists.skipped):
+            logger.debug(f"Post {post_uri} already processed/skipped")
             return False
         
         reply = Reply(

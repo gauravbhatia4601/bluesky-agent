@@ -52,6 +52,7 @@ def run_timeline_fetch():
     replies_added = 0
     posts_filtered = 0
     llm_errors = 0
+    already_replied = 0
     
     for post in posts_to_process:
         # Stop if we've generated enough replies
@@ -69,6 +70,17 @@ def run_timeline_fetch():
         
         if not is_relevant:
             posts_filtered += 1
+            continue
+        
+        # Check if we already replied to this post
+        from models import get_session, Reply
+        session = get_session()
+        existing_reply = session.query(Reply).filter(Reply.post_uri == post["uri"]).first()
+        session.close()
+        
+        if existing_reply:
+            already_replied += 1
+            logger.debug(f"Already replied to post by @{post.get('author_handle')}")
             continue
         
         # Generate reply with delay between requests
@@ -107,7 +119,7 @@ def run_timeline_fetch():
         else:
             logger.debug(f"Reply score too low ({score}): {reply_text[:50]}...")
     
-    logger.info(f"=== TIMELINE FETCH COMPLETE: {replies_added} replies added, {posts_filtered} posts filtered, {llm_errors} LLM errors ===")
+    logger.info(f"=== TIMELINE FETCH COMPLETE: {replies_added} replies added, {posts_filtered} filtered, {llm_errors} LLM errors, {already_replied} already replied ===")
 
 
 def post_pending_replies():
