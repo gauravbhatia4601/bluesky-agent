@@ -23,7 +23,7 @@ POINTS_UPDATE = 2
 POINTS_DELETE = 1
 
 # Posting targets (100+ replies/day, 6 original posts/day)
-MAX_REPLIES_PER_HOUR = 10  # Allow up to 10 per hour
+MAX_REPLIES_PER_HOUR = 60  # Allow up to 60 per hour
 MAX_REPLIES_PER_DAY = 150  # 150 replies per day max
 MAX_ORIGINAL_POSTS_PER_DAY = 6  # 6 original posts per day
 
