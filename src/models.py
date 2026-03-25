@@ -238,6 +238,8 @@ def get_pending_queue() -> List[Dict[str, Any]]:
         return [
             {
                 "id": p.id,
+                "post_uri": p.post_uri,
+                "post_cid": p.post_cid,
                 "post_author": p.post_author,
                 "post_text": p.post_text[:100] + "..." if len(p.post_text) > 100 else p.post_text,
                 "reply_text": p.reply_text,
