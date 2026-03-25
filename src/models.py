@@ -4,12 +4,14 @@ Database models for reply tracking and metrics
 
 import json
 import logging
+import time
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
 from sqlalchemy import create_engine, Column, String, DateTime, Integer, Text, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import OperationalError
 
 from config import DATABASE_URL
 
@@ -92,15 +94,27 @@ engine = None
 SessionLocal = None
 
 
-def init_db():
-    """Initialize database connection"""
+def init_db(max_retries=5, retry_delay=2):
+    """Initialize database connection with retry logic"""
     global engine, SessionLocal
     
-    engine = create_engine(DATABASE_URL, echo=False)
-    Base.metadata.create_all(bind=engine)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    engine = create_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
     
-    logger.info(f"Database initialized: {DATABASE_URL.split('://')[0]}")
+    for attempt in range(max_retries):
+        try:
+            Base.metadata.create_all(bind=engine)
+            SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+            logger.info(f"Database initialized: {DATABASE_URL.split('://')[0]}")
+            return
+        except OperationalError as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"Database connection failed (attempt {attempt + 1}/{max_retries}), retrying in {retry_delay}s... Error: {e}")
+                time.sleep(retry_delay)
+            else:
+                logger.error(f"Failed to connect to database after {max_retries} attempts: {e}")
+                raise
+    
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def get_session():
