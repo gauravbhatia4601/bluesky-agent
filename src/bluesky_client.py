@@ -41,18 +41,26 @@ class BlueskyClient:
         """Login to Bluesky with session persistence"""
         session_file = _ensure_session_file()
         
-        if session_file.exists():
+        # Try to resume existing session only if file has content
+        if session_file.exists() and session_file.stat().st_size > 0:
             try:
                 session_string = session_file.read_text().strip()
-                self.client.login(session_string=session_string)
-                self.session = session_string
-                self.handle = self.client.me.handle if hasattr(self.client.me, 'handle') else BSKY_HANDLE
-                logger.info(f"Resumed existing Bluesky session for {self.handle}")
-                return True
+                if session_string and len(session_string) > 10:  # Basic validation
+                    self.client.login(session_string=session_string)
+                    self.session = session_string
+                    self.handle = self.client.me.handle if hasattr(self.client.me, 'handle') else BSKY_HANDLE
+                    logger.info(f"Resumed existing Bluesky session for {self.handle}")
+                    return True
             except Exception as e:
                 logger.warning(f"Failed to resume session: {e}, logging in fresh")
+                # Clear invalid session file
+                session_file.write_text("")
         
+        # Fresh login
         try:
+            if not BSKY_HANDLE or not BSKY_PASSWORD:
+                logger.error("BSKY_HANDLE and BSKY_PASSWORD must be set")
+                return False
             self.client.login(BSKY_HANDLE, BSKY_PASSWORD)
             self.session = self.client.export_session_string()
             self.handle = self.client.me.handle if hasattr(self.client.me, 'handle') else BSKY_HANDLE

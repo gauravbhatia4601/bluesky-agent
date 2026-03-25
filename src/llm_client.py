@@ -18,7 +18,15 @@ class LLMClient:
     def __init__(self, endpoint: str = LLM_ENDPOINT, model: str = LLM_MODEL):
         self.endpoint = endpoint.rstrip("/")
         self.model = model
-        self.timeout = 30
+        self.timeout = 60
+    
+    def _check_endpoint_available(self) -> bool:
+        """Check if LLM endpoint is reachable"""
+        try:
+            response = requests.get(f"{self.endpoint}/api/tags", timeout=5)
+            return response.status_code == 200
+        except:
+            return False
     
     def generate_reply(
         self,
