@@ -175,6 +175,11 @@ class BlueskyClient:
         try:
             import requests
             
+            # Always ensure fresh auth before search
+            if not self.client._session:
+                logger.info("No session, logging in...")
+                self.login()
+            
             session_info = self.client._session
             access_jwt = None
             
@@ -184,7 +189,9 @@ class BlueskyClient:
                 elif hasattr(session_info, 'access_jwt'):
                     access_jwt = session_info.access_jwt
             
+            # If no token or about to expire, refresh
             if not access_jwt:
+                logger.info("Access token missing, refreshing...")
                 self.login()
                 session_info = self.client._session
                 if hasattr(session_info, 'accessJwt'):
@@ -192,19 +199,46 @@ class BlueskyClient:
                 elif hasattr(session_info, 'access_jwt'):
                     access_jwt = session_info.access_jwt
             
+            if not access_jwt:
+                logger.error("Failed to get access token for search")
+                return []
+            
             headers = {
                 "Authorization": f"Bearer {access_jwt}",
                 "Content-Type": "application/json"
             }
             
             params = {"q": query, "limit": limit}
+            logger.debug(f"Searching for: {query}")
+            
             response = requests.get(
                 f"{BSKY_SERVICE}/xrpc/app.bsky.feed.searchPosts",
                 headers=headers,
                 params=params
             )
             
-            response.raise_for_status()
+            # Handle 400/401 errors - refresh auth and retry once
+            if response.status_code in [400, 401]:
+                logger.info(f"Search auth failed ({response.status_code}), refreshing and retrying...")
+                self.login()
+                session_info = self.client._session
+                if hasattr(session_info, 'accessJwt'):
+                    access_jwt = session_info.accessJwt
+                elif hasattr(session_info, 'access_jwt'):
+                    access_jwt = session_info.access_jwt
+                
+                if access_jwt:
+                    headers["Authorization"] = f"Bearer {access_jwt}"
+                    response = requests.get(
+                        f"{BSKY_SERVICE}/xrpc/app.bsky.feed.searchPosts",
+                        headers=headers,
+                        params=params
+                    )
+            
+            if response.status_code != 200:
+                logger.error(f"Search failed: {response.status_code} - {response.text[:300]}")
+                return []
+            
             data = response.json()
             
             posts = []
@@ -223,6 +257,8 @@ class BlueskyClient:
             return posts
         except Exception as e:
             logger.error(f"Failed to search posts: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
     
     def _refresh_auth(self):

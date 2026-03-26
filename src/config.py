@@ -22,21 +22,21 @@ POINTS_CREATE = 3
 POINTS_UPDATE = 2
 POINTS_DELETE = 1
 
-# Posting targets (balanced posting rate)
-MAX_REPLIES_PER_HOUR = 10  # Allow up to 10 per hour
-MAX_REPLIES_PER_DAY = 150  # 150 replies per day max
+# Posting targets (aggressive posting rate)
+MAX_REPLIES_PER_HOUR = 60  # Allow up to 60 per hour
+MAX_REPLIES_PER_DAY = 200  # 200 replies per day max
 MAX_ORIGINAL_POSTS_PER_DAY = 6  # 6 original posts per day
 
 # Scheduling
-TIMELINE_FETCH_INTERVAL_MINUTES = 30  # Generate replies every 30 min
-POST_DELAY_MIN_SECONDS = 60
-POST_DELAY_MAX_SECONDS = 180
-REPLY_INTERVAL_MINUTES = 5  # Post replies every 5 minutes (faster)
+TIMELINE_FETCH_INTERVAL_MINUTES = 15  # Generate replies every 15 min
+POST_DELAY_MIN_SECONDS = 30
+POST_DELAY_MAX_SECONDS = 90
+REPLY_INTERVAL_MINUTES = 2  # Post replies every 2 minutes (aggressive)
 ORIGINAL_POST_INTERVAL_HOURS = 4  # Post original content every 4 hours (6/day)
 
 # LLM settings
-LLM_REQUEST_DELAY_SECONDS = 5  # Delay between LLM requests
-MAX_REPLIES_PER_GENERATION = 5  # Max replies to generate per fetch
+LLM_REQUEST_DELAY_SECONDS = 3  # Delay between LLM requests
+MAX_REPLIES_PER_GENERATION = 10  # Max replies to generate per fetch
 
 # Topics to prioritize - focused on tech, AI, CS, software development
 TOPIC_KEYWORDS = [

@@ -123,7 +123,7 @@ def run_timeline_fetch():
 
 
 def post_pending_replies():
-    """Post pending replies with natural delays + auto-like"""
+    """Post pending replies aggressively"""
     logger.info("=== POST PENDING REPLIES JOB STARTING ===")
     
     client = get_client()
@@ -149,18 +149,18 @@ def post_pending_replies():
     
     logger.info(f"Found {len(pending)} pending replies in queue")
     
-    # Post up to 5 replies per run with 5 second delays
-    posts_to_make = min(5, len(pending))
+    # Post up to 10 replies per run with 3 second delays
+    posts_to_make = min(10, len(pending))
     logger.info(f"Will post {posts_to_make} replies this run")
     
+    posted_count = 0
     for i in range(posts_to_make):
         reply_data = pending[i]
         logger.info(f"Posting reply {i+1}/{posts_to_make} - ID {reply_data['id']} to @{reply_data['post_author']}")
-        logger.info(f"Reply text: {reply_data['reply_text'][:100]}...")
         
         # Check rate limit before each post
         if not client.can_post():
-            logger.warning(f"Rate limit reached after {i} posts")
+            logger.warning(f"Rate limit reached after {posted_count} posts")
             break
         
         # Actually post
@@ -174,29 +174,26 @@ def post_pending_replies():
             if reply_uri:
                 mark_posted(reply_data["id"], reply_uri)
                 logger.info(f"✓ Successfully posted reply: {reply_uri}")
+                posted_count += 1
                 
                 # Auto-like the original post after replying
                 if AUTO_LIKE_ON_REPLY:
                     try:
                         client.like_post(reply_data["post_uri"], reply_data["post_cid"])
-                        logger.info(f"✓ Liked original post")
                     except Exception as e:
-                        logger.warning(f"Could not like post: {e}")
+                        logger.debug(f"Could not like post: {e}")
             else:
                 mark_failed(reply_data["id"])
-                logger.error(f"✗ Failed to post reply ID {reply_data['id']}: post_reply returned None")
+                logger.error(f"✗ Failed to post reply ID {reply_data['id']}")
         except Exception as e:
             logger.error(f"✗ Exception posting reply: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
             mark_failed(reply_data["id"])
         
-        # Add 5 second delay between posts (except after last one)
+        # Add 3 second delay between posts (except after last one)
         if i < posts_to_make - 1:
-            logger.info(f"Waiting 5 seconds before next post...")
-            time.sleep(5)
+            time.sleep(3)
     
-    logger.info(f"=== POST PENDING REPLIES COMPLETE: Posted {posts_to_make} replies ===")
+    logger.info(f"=== POST PENDING REPLIES COMPLETE: Posted {posted_count} replies ===")
 
 
 def create_original_post():
