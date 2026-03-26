@@ -149,54 +149,40 @@ def post_pending_replies():
     
     logger.info(f"Found {len(pending)} pending replies in queue")
     
-    # Post up to 5 replies per run with 5 second delays
-    posts_to_make = min(5, len(pending))
-    logger.info(f"Will post {posts_to_make} replies this run")
+    # Post first reply in queue (1 per run)
+    reply_data = pending[0]
+    logger.info(f"Posting reply ID {reply_data['id']} to @{reply_data['post_author']}")
+    logger.info(f"Reply text: {reply_data['reply_text'][:100]}...")
     
-    for i in range(posts_to_make):
-        reply_data = pending[i]
-        logger.info(f"Posting reply {i+1}/{posts_to_make} - ID {reply_data['id']} to @{reply_data['post_author']}")
-        logger.info(f"Reply text: {reply_data['reply_text'][:100]}...")
+    # Actually post
+    try:
+        reply_uri = client.post_reply(
+            parent_uri=reply_data["post_uri"],
+            parent_cid=reply_data["post_cid"],
+            text=reply_data["reply_text"]
+        )
         
-        # Check rate limit before each post
-        if not client.can_post():
-            logger.warning(f"Rate limit reached after {i} posts")
-            break
-        
-        # Actually post
-        try:
-            reply_uri = client.post_reply(
-                parent_uri=reply_data["post_uri"],
-                parent_cid=reply_data["post_cid"],
-                text=reply_data["reply_text"]
-            )
+        if reply_uri:
+            mark_posted(reply_data["id"], reply_uri)
+            logger.info(f"✓ Successfully posted reply: {reply_uri}")
             
-            if reply_uri:
-                mark_posted(reply_data["id"], reply_uri)
-                logger.info(f"✓ Successfully posted reply: {reply_uri}")
-                
-                # Auto-like the original post after replying
-                if AUTO_LIKE_ON_REPLY:
-                    try:
-                        client.like_post(reply_data["post_uri"], reply_data["post_cid"])
-                        logger.info(f"✓ Liked original post")
-                    except Exception as e:
-                        logger.warning(f"Could not like post: {e}")
-            else:
-                mark_failed(reply_data["id"])
-                logger.error(f"✗ Failed to post reply ID {reply_data['id']}: post_reply returned None")
-        except Exception as e:
-            logger.error(f"✗ Exception posting reply: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+            # Auto-like the original post after replying
+            if AUTO_LIKE_ON_REPLY:
+                try:
+                    client.like_post(reply_data["post_uri"], reply_data["post_cid"])
+                    logger.info(f"✓ Liked original post")
+                except Exception as e:
+                    logger.warning(f"Could not like post: {e}")
+        else:
             mark_failed(reply_data["id"])
-        
-        # Add 5 second delay between posts (except after last one)
-        if i < posts_to_make - 1:
-            logger.info(f"Waiting 5 seconds before next post...")
-            time.sleep(5)
+            logger.error(f"✗ Failed to post reply ID {reply_data['id']}: post_reply returned None")
+    except Exception as e:
+        logger.error(f"✗ Exception posting reply: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        mark_failed(reply_data["id"])
     
-    logger.info(f"=== POST PENDING REPLIES COMPLETE: Posted {posts_to_make} replies ===")
+    logger.info(f"=== POST PENDING REPLIES COMPLETE: Posted 1 reply ===")
 
 
 def create_original_post():

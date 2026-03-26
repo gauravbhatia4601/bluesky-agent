@@ -22,8 +22,8 @@ POINTS_CREATE = 3
 POINTS_UPDATE = 2
 POINTS_DELETE = 1
 
-# Posting targets (100+ replies/day, 6 original posts/day)
-MAX_REPLIES_PER_HOUR = 60  # Allow up to 60 per hour
+# Posting targets (balanced posting rate)
+MAX_REPLIES_PER_HOUR = 10  # Allow up to 10 per hour
 MAX_REPLIES_PER_DAY = 150  # 150 replies per day max
 MAX_ORIGINAL_POSTS_PER_DAY = 6  # 6 original posts per day
 
@@ -31,7 +31,7 @@ MAX_ORIGINAL_POSTS_PER_DAY = 6  # 6 original posts per day
 TIMELINE_FETCH_INTERVAL_MINUTES = 30  # Generate replies every 30 min
 POST_DELAY_MIN_SECONDS = 60
 POST_DELAY_MAX_SECONDS = 180
-REPLY_INTERVAL_MINUTES = 5  # Post replies every 5 minutes (5 at a time)
+REPLY_INTERVAL_MINUTES = 15  # Post replies every 15 minutes (1 at a time)
 ORIGINAL_POST_INTERVAL_HOURS = 4  # Post original content every 4 hours (6/day)
 
 # LLM settings
