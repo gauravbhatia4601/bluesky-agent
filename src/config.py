@@ -11,7 +11,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///bluesky.db")
 
 # LLM endpoint
 LLM_ENDPOINT = os.getenv("LLM_ENDPOINT", "http://host.docker.internal:11434")
-LLM_MODEL = os.getenv("LLM_MODEL", "mistral:7b")  # No thinking, great for casual replies
+LLM_MODEL = os.getenv("LLM_MODEL", "gemma3:27b-cloud")
 
 # Rate limits (points per hour/day from docs)
 RATE_LIMIT_POINTS_PER_HOUR = 5000
