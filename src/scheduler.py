@@ -198,16 +198,19 @@ def post_pending_replies():
 
 def create_original_post():
     """Create original content (2 posts/day)"""
-    logger.info("Creating original post...")
+    logger.info("=== CREATING ORIGINAL POST JOB STARTING ===")
     
     client = get_client()
     llm = get_llm_client()
     
+    logger.info(f"Current daily original posts: {client.daily_original_posts}/{MAX_ORIGINAL_POSTS_PER_DAY}")
+    
     # Check if we've hit daily limit
     if client.daily_original_posts >= MAX_ORIGINAL_POSTS_PER_DAY:
-        logger.info("Daily original post limit reached")
+        logger.info("Daily original post limit reached, skipping")
         return
     
+    logger.info("Generating original post content...")
     # Generate original post based on topics
     post_text = llm.generate_original_post(
         topics=TOPIC_KEYWORDS[:5],  # Use top 5 topics
@@ -215,18 +218,26 @@ def create_original_post():
     )
     
     if not post_text:
-        logger.warning("Failed to generate original post")
+        logger.warning("Failed to generate original post - LLM returned empty")
         return
+    
+    logger.info(f"Generated post content ({len(post_text)} chars): {post_text[:100]}...")
     
     # Post it
     try:
+        logger.info("Attempting to post original content to Bluesky...")
         post_uri = client.post_original(text=post_text)
         if post_uri:
             add_original_post(text=post_text, uri=post_uri)
             client.daily_original_posts += 1
-            logger.info(f"Posted original content: {post_uri}")
+            logger.info(f"✓ Successfully posted original content: {post_uri}")
+            logger.info(f"Daily original post count now: {client.daily_original_posts}")
+        else:
+            logger.error("post_original returned None - post failed")
     except Exception as e:
-        logger.error(f"Failed to post original content: {e}")
+        logger.error(f"✗ Failed to post original content: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
 
 def reset_hourly_counters():
