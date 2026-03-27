@@ -868,10 +868,10 @@
                 const data = await res.json();
                 
                 if (data.success) {
-                    alert(f"Reply {replyId} deleted successfully!");
+                    alert("Reply " + replyId + " deleted successfully!");
                     loadQueue(); // Reload queue
                 } else {
-                    alert(`Failed to delete: ${data.error}`);
+                    alert("Failed to delete: " + data.error);
                 }
             } catch (error) {
                 alert('Failed to delete reply');
@@ -891,8 +891,8 @@
                 const data = await res.json();
                 
                 if (data.success) {
-                    alert(`Cleared ${data.deleted} replies from queue!");
-                    loadQueue() // Reload queue
+                    alert("Cleared " + data.deleted + " replies from queue!");
+                    loadQueue(); // Reload queue
                 } else {
                     alert('Failed to clear queue');
                 }
