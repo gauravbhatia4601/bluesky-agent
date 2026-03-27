@@ -306,6 +306,7 @@ Post:"""
                 json={
                     "model": self.model,
                     "prompt": prompt,
+                    "system": SYSTEM_PROMPT,  # Add system prompt
                     "stream": False
                     # No num_predict cap - let LLM generate naturally
                 },
