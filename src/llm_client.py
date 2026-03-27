@@ -98,7 +98,13 @@ Reply:"""
                 data = response.json()
                 logger.info(f"LLM JSON full data: {data}")
                 
+                # For models with thinking mode (like gpt-oss), only use the 'response' field
+                # Ignore 'thinking' field completely - that's just internal reasoning
                 reply_text = data.get("response", "").strip()
+                
+                # Log if there was thinking text (for debugging)
+                if "thinking" in data:
+                    logger.debug(f"Model had thinking field, using response field only")
                 
                 if not reply_text:
                     logger.warning(f"Empty response from LLM model {self.model}")
