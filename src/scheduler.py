@@ -18,43 +18,52 @@ from config import (
 
 logger = logging.getLogger(__name__)
 
+# Track which keyword index we're on
+_current_keyword_index = 0
+
 
 def run_timeline_fetch():
-    """Fetch timeline and generate replies"""
-    logger.info("=== TIMELINE FETCH JOB STARTING ===")
+    """Fetch posts by searching topic keywords and generate replies"""
+    global _current_keyword_index
+    
+    logger.info("=== TOPIC SEARCH JOB STARTING ===")
     
     client = get_client()
     if not client:
-        logger.error("No client available - cannot fetch timeline")
+        logger.error("No client available - cannot search")
         return
     
     llm = get_llm_client()
     
-    # Get timeline posts
-    logger.info("Fetching timeline posts...")
-    timeline_posts = client.get_timeline(limit=50)
-    logger.info(f"Got {len(timeline_posts)} timeline posts")
+    # Get the current keyword to search
+    if not TOPIC_KEYWORDS:
+        logger.error("No topic keywords configured")
+        return
     
-    # Get topic-based posts
-    logger.info("Fetching topic posts...")
-    topic_posts = client.get_topic_posts()
-    logger.info(f"Got {len(topic_posts)} topic posts")
+    keyword = TOPIC_KEYWORDS[_current_keyword_index % len(TOPIC_KEYWORDS)]
+    _current_keyword_index += 1
     
-    # Combine and deduplicate
-    all_posts = {}
-    for post in timeline_posts + topic_posts:
-        all_posts[post["uri"]] = post
+    logger.info(f"Searching for keyword: '{keyword}' (index {_current_keyword_index % len(TOPIC_KEYWORDS)})")
     
-    posts_to_process = list(all_posts.values())
-    logger.info(f"Processing {len(posts_to_process)} unique posts")
+    # Search for posts with this keyword
+    try:
+        posts = client.search_posts(query=keyword, limit=50)
+        logger.info(f"Found {len(posts)} posts for keyword '{keyword}'")
+    except Exception as e:
+        logger.error(f"Failed to search for keyword '{keyword}': {e}")
+        return
     
-    # Generate replies for relevant posts
+    if not posts:
+        logger.info(f"No posts found for keyword '{keyword}'")
+        return
+    
+    # Generate replies for these posts (already filtered by search)
     replies_added = 0
-    posts_filtered = 0
     llm_errors = 0
     already_replied = 0
+    non_english_skipped = 0
     
-    for post in posts_to_process:
+    for post in posts:
         # Stop if we've generated enough replies
         if replies_added >= MAX_REPLIES_PER_GENERATION:
             logger.info(f"Reached max replies per generation ({MAX_REPLIES_PER_GENERATION}), stopping")
@@ -62,14 +71,6 @@ def run_timeline_fetch():
         
         # Skip own posts
         if client.handle and post.get("author_handle") == client.handle:
-            continue
-        
-        # Check relevance - must contain at least one topic keyword
-        post_text = post.get("text", "").lower()
-        is_relevant = any(kw.lower() in post_text for kw in TOPIC_KEYWORDS)
-        
-        if not is_relevant:
-            posts_filtered += 1
             continue
         
         # Check if we already replied to this post
@@ -80,15 +81,14 @@ def run_timeline_fetch():
         
         if existing_reply:
             already_replied += 1
-            logger.debug(f"Already replied to post by @{post.get('author_handle')}")
             continue
         
-        # Generate reply with delay between requests
-        logger.debug(f"Generating reply for post by @{post.get('author_handle')}: {post_text[:50]}...")
+        # Generate reply
+        logger.debug(f"Generating reply for post by @{post.get('author_handle')}")
         reply_text = llm.generate_reply(
             post_text=post.get("text", ""),
             author_handle=post.get("author_handle", ""),
-            context=f"Post from timeline"
+            context=f"Found via search: {keyword}"
         )
         
         if not reply_text:
@@ -117,9 +117,9 @@ def run_timeline_fetch():
                     logger.debug(f"Waiting {LLM_REQUEST_DELAY_SECONDS}s before next LLM request...")
                     time.sleep(LLM_REQUEST_DELAY_SECONDS)
         else:
-            logger.debug(f"Reply score too low ({score}): {reply_text[:50]}...")
+            logger.debug(f"Reply score too low ({score})")
     
-    logger.info(f"=== TIMELINE FETCH COMPLETE: {replies_added} replies added, {posts_filtered} filtered, {llm_errors} LLM errors, {already_replied} already replied ===")
+    logger.info(f"=== TOPIC SEARCH COMPLETE: {replies_added} replies added for '{keyword}', {already_replied} already replied, {llm_errors} LLM errors ===")
 
 
 def post_pending_replies():
