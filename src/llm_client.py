@@ -245,65 +245,76 @@ Reply:"""
         topics: List[str],
         style: str = "insight"
     ) -> Optional[str]:
-        """Generate original post content"""
+        """Generate original post content - developer sharing insights on tech"""
         
-        topic_str = ", ".join(topics[:3])
-        
-        style_prompts = {
-            "insight": f"Share a specific insight or lesson learned about {topic_str}. Be concrete and opinionated.",
-            "tip": f"Share a practical tip about {topic_str} that most people get wrong.",
-            "opinion": f"Share a contrarian or nuanced opinion about {topic_str}. Take a stance.",
-            "question": f"Ask a thought-provoking question about {topic_str} that makes people think."
-        }
-        
-        prompt = f"""Generate a short social media post (under 280 characters).
+        prompt = """You are a software developer sharing your thoughts on social media.
 
-{style_prompts.get(style, style_prompts['insight'])}
+Write an original post about something tech-related that's on your mind. Could be:
+- A recent tech trend or viral topic you have thoughts on
+- Something you learned while building
+- A problem you solved and what you discovered
+- Your take on a tool, framework, or approach people are talking about
+- A lesson from your experience building software
 
-Requirements:
-- Be specific, not generic
-- Sound like an experienced practitioner, not a tutorial
-- No hedging ("I think", "in my opinion")
-- One clear idea only
-- No hashtags unless genuinely useful
-- No call-to-action ("What do you think?")
+Keep it casual and human. Write like you're talking to other developers. No corporate speak. No tutorials. Just your genuine thoughts.
+
+Make it 300-400 characters. Long enough to share real insight, short enough to read quickly.
 
 Post:"""
 
         try:
+            logger.info("Generating original post...")
+            
             response = requests.post(
                 f"{self.endpoint}/api/generate",
                 json={
                     "model": self.model,
                     "prompt": prompt,
-                    "system": SYSTEM_PROMPT,
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.9,
-                        "top_p": 0.95,
-                        "num_predict": 80
-                    }
+                    "stream": False
+                    # No num_predict cap - let LLM generate naturally
                 },
                 timeout=self.timeout
             )
             
-            if response.status_code == 200:
-                data = response.json()
-                post_text = data.get("response", "").strip()
-                post_text = self._clean_reply(post_text, 280)
-                
-                if post_text and len(post_text) > 15:
-                    logger.debug(f"Generated original post: {post_text[:50]}...")
-                    return post_text
-                else:
-                    logger.warning("Original post too short or empty")
-                    return None
-            else:
+            if response.status_code == 404:
+                logger.error(f"Model '{self.model}' not found")
+                return None
+            
+            if response.status_code != 200:
                 logger.error(f"LLM request failed: {response.status_code}")
+                return None
+            
+            data = response.json()
+            raw_text = data.get("response", "")
+            
+            # Extract response channel for gpt-oss (same as reply generation)
+            import re
+            response_pattern = r"<\|start\|>assistant<\|channel\|>response<\|message\|>(.*?)<\|end\|>"
+            response_match = re.search(response_pattern, raw_text, flags=re.DOTALL | re.IGNORECASE)
+            
+            if response_match:
+                post_text = response_match.group(1).strip()
+                logger.info(f"Extracted post from response channel ({len(post_text)} chars)")
+            else:
+                post_text = raw_text.strip()
+                logger.info(f"No response channel, using raw text ({len(post_text)} chars)")
+            
+            logger.info(f"Generated post: {post_text[:200]}...")
+            
+            # Clean but allow longer posts (300-400 chars target)
+            post_text = self._clean_reply(post_text, 400)
+            
+            if post_text and len(post_text) > 50:
+                logger.info(f"Final post ({len(post_text)} chars): {post_text}")
+                return post_text
+            else:
+                logger.warning(f"Generated post too short: {len(post_text)} chars")
                 return None
                 
         except Exception as e:
             logger.error(f"LLM error: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return None
 
 
