@@ -44,6 +44,11 @@ class LLMClient:
             logger.warning(f"LLM endpoint {self.endpoint} not available")
             return None
         
+        # Check if post is in English (basic check)
+        if not self._is_english_text(post_text):
+            logger.info(f"Skipping non-English post from @{author_handle}")
+            return None
+        
         prompt = f"""Post by @{author_handle}:
 "{post_text}"
 
@@ -160,6 +165,37 @@ Reply:"""
                 return None
         
         return None
+    
+    def _is_english_text(self, text: str) -> bool:
+        """Basic check if text is primarily English"""
+        if not text:
+            return False
+        
+        # Common non-English character ranges
+        non_english_chars = [
+            ord(c) for c in text 
+            if ord(c) > 127 and ord(c) < 256  # Latin extended (European languages)
+            or ord(c) >= 1024  # Cyrillic, Greek, etc.
+        ]
+        
+        # If more than 20% non-ASCII chars, likely not English
+        if len(non_english_chars) > len(text) * 0.2:
+            return False
+        
+        # Common English words check
+        english_indicators = ['the', 'is', 'are', 'was', 'were', 'have', 'has', 'this', 'that', 'with', 'for', 'and', 'but', 'not']
+        text_lower = text.lower()
+        
+        # If at least one common English word found, consider it English
+        for word in english_indicators:
+            if f" {word} " in f" {text_lower} ":
+                return True
+        
+        # If no non-English chars detected, assume English
+        if len(non_english_chars) == 0:
+            return True
+        
+        return False
     
     def generate_multiple_options(
         self,
