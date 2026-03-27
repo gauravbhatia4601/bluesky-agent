@@ -314,6 +314,48 @@ def mark_failed(reply_id: int):
         session.close()
 
 
+def delete_queued_reply(reply_id: int) -> bool:
+    """Delete a queued reply by ID"""
+    session = get_session()
+    try:
+        reply = session.query(Reply).filter(
+            Reply.id == reply_id,
+            Reply.reply_status == "pending"
+        ).first()
+        if reply:
+            session.delete(reply)
+            session.commit()
+            logger.info(f"Deleted queued reply ID {reply_id}")
+            return True
+        else:
+            logger.warning(f"Reply ID {reply_id} not found or not pending")
+            return False
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to delete queued reply: {e}")
+        return False
+    finally:
+        session.close()
+
+
+def clear_all_pending() -> int:
+    """Clear all pending replies from queue. Returns count deleted."""
+    session = get_session()
+    try:
+        count = session.query(Reply).filter(
+            Reply.reply_status == "pending"
+        ).delete()
+        session.commit()
+        logger.info(f"Cleared {count} pending replies from queue")
+        return count
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to clear pending replies: {e}")
+        return 0
+    finally:
+        session.close()
+
+
 def add_original_post(text: str, uri: str) -> bool:
     """Add an original post to history"""
     session = get_session()

@@ -168,6 +168,27 @@ def api_reply():
     return jsonify({"success": False, "error": "Failed to post reply"}), 500
 
 
+@app.route("/api/queue/delete/<int:reply_id>", methods=["DELETE"])
+def api_delete_queued_reply(reply_id):
+    """Delete a specific queued reply by ID"""
+    from models import delete_queued_reply
+    
+    success = delete_queued_reply(reply_id)
+    if success:
+        return jsonify({"success": True, "message": f"Deleted reply {reply_id}"})
+    else:
+        return jsonify({"success": False, "error": "Reply not found or not pending"}), 404
+
+
+@app.route("/api/queue/clear", methods=["POST"])
+def api_clear_queue():
+    """Clear all pending replies from queue"""
+    from models import clear_all_pending
+    
+    count = clear_all_pending()
+    return jsonify({"success": True, "deleted": count})
+
+
 def setup_scheduler():
     """Setup background scheduler for timeline fetch and reply posting"""
     global scheduler
