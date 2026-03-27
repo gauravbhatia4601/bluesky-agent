@@ -73,7 +73,7 @@ Reply:"""
                         "options": {
                             "temperature": 0.8,
                             "top_p": 0.9,
-                            "num_predict": 150
+                            "num_predict": 300  # Increased to avoid truncation
                         }
                     },
                     timeout=self.timeout
@@ -98,13 +98,44 @@ Reply:"""
                 data = response.json()
                 logger.info(f"LLM JSON full data: {data}")
                 
-                # For models with thinking mode (like gpt-oss), only use the 'response' field
-                # Ignore 'thinking' field completely - that's just internal reasoning
-                reply_text = data.get("response", "").strip()
+                # Get the raw response text
+                raw_text = data.get("response", "").strip()
+                logger.info(f"Raw LLM response ({len(raw_text)} chars): {raw_text[:300]}...")
                 
-                # Log if there was thinking text (for debugging)
-                if "thinking" in data:
-                    logger.debug(f"Model had thinking field, using response field only")
+                # For models with thinking mode (gpt-oss): 
+                # Thinking text appears at the start, often followed by actual reply
+                # Look for patterns that indicate end of thinking and start of reply
+                reply_text = raw_text
+                
+                # Common thinking patterns to strip
+                thinking_indicators = [
+                    "I can't actually",
+                    "I need to",
+                    "Let me",
+                    "I should",
+                    "The user",
+                    "This appears to be",
+                    "Based on the context",
+                    "I notice",
+                    "I see",
+                    "It seems",
+                ]
+                
+                # If response starts with thinking pattern, try to extract actual reply
+                for indicator in thinking_indicators:
+                    if raw_text.startswith(indicator):
+                        logger.debug(f"Detected thinking text starting with: {indicator}")
+                        # Try to find where actual reply starts
+                        # Look for line breaks or common reply starters
+                        lines = raw_text.split('\n')
+                        if len(lines) > 1:
+                            # Take the last non-empty line as the actual reply
+                            for line in reversed(lines):
+                                if line.strip() and len(line.strip()) > 10:
+                                    reply_text = line.strip()
+                                    logger.debug(f"Extracted reply from line: {reply_text[:100]}")
+                                    break
+                        break
                 
                 if not reply_text:
                     logger.warning(f"Empty response from LLM model {self.model}")
