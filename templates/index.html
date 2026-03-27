@@ -679,14 +679,20 @@
                 
                 const el = document.getElementById('queue-list');
                 if (queueData.length > 0) {
-                    el.innerHTML = queueData.map(item => `
+                    // Add header with clear all button
+                    el.innerHTML = '<div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Pending Queue</h5><button class="btn btn-outline-danger btn-sm" onclick="clearAllReplies()" title="Clear all pending replies"><i class="bi bi-trash"></i> Clear All</button></div>' + queueData.map(item => `
                         <div class="post-item">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <div>
                                     <span class="quality-badge pending-badge me-2">Pending</span>
                                     <span class="post-author">@${escapeHtml(item.post_author)}</span>
                                 </div>
-                                <span class="post-meta">${formatDate(item.created_at)}</span>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <span class="post-meta">${formatDate(item.created_at)}</span>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteReply(${item.id})" title="Delete this reply">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="post-text">${escapeHtml(item.reply_text)}</div>
                             <div class="post-meta mt-2">
@@ -848,6 +854,52 @@
         
         // Refresh every 30 seconds
         setInterval(loadAll, 30000);
+        
+        // Delete reply functionality
+        async function deleteReply(replyId) {
+            if (!confirm("Are you sure you want to delete this queued reply?")) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/queue/delete/${replyId}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert(f"Reply {replyId} deleted successfully!");
+                    loadQueue(); // Reload queue
+                } else {
+                    alert(`Failed to delete: ${data.error}`);
+                }
+            } catch (error) {
+                alert('Failed to delete reply');
+            }
+        }
+        
+        // Clear entire queue
+        async function clearAllReplies() {
+            if (!confirm("Are you sure you want to clear ALL pending replies from the queue? This cannot be undone.")) {
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/queue/clear', {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert(`Cleared ${data.deleted} replies from queue!");
+                    loadQueue() // Reload queue
+                } else {
+                    alert('Failed to clear queue');
+                }
+            } catch (error) {
+                alert('Failed to clear queue');
+            }
+        }
     </script>
 </body>
 </html>
