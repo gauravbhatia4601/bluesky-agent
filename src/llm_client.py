@@ -69,12 +69,8 @@ Reply:"""
                     json={
                         "model": self.model,
                         "prompt": prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": 0.8,
-                            "top_p": 0.9,
-                            "num_predict": 300  # Increased to avoid truncation
-                        }
+                        "stream": False
+                        # No num_predict cap - let LLM generate naturally
                     },
                     timeout=self.timeout
                 )
@@ -96,63 +92,44 @@ Reply:"""
                     return None
                 
                 data = response.json()
-                logger.info(f"LLM JSON full data: {data}")
+                raw_text = data.get("response", "")
+                logger.info(f"Raw LLM response ({len(raw_text)} chars)")
                 
-                # Get the raw response text
-                raw_text = data.get("response", "").strip()
-                logger.info(f"Raw LLM response ({len(raw_text)} chars): {raw_text[:300]}...")
+                # Extract only the final 'response' channel from gpt-oss
+                # gpt-oss uses channel markers:
+                #   <|start|>assistant<|channel|>analysis<|message|> ... <|end|>
+                #   <|start|>assistant<|channel|>response<|message|> ... <|end|>
+                # We want only the response channel, not analysis/thinking
                 
-                # For models with thinking mode (gpt-oss): 
-                # Thinking text appears at the start, often followed by actual reply
-                # Look for patterns that indicate end of thinking and start of reply
-                reply_text = raw_text
+                import re
                 
-                # Common thinking patterns to strip
-                thinking_indicators = [
-                    "I can't actually",
-                    "I need to",
-                    "Let me",
-                    "I should",
-                    "The user",
-                    "This appears to be",
-                    "Based on the context",
-                    "I notice",
-                    "I see",
-                    "It seems",
-                ]
+                # Pattern to match response channel
+                response_pattern = r"<\|start\|>assistant<\|channel\|>response<\|message\|>(.*?)<\|end\|>"
+                response_match = re.search(response_pattern, raw_text, flags=re.DOTALL | re.IGNORECASE)
                 
-                # If response starts with thinking pattern, try to extract actual reply
-                for indicator in thinking_indicators:
-                    if raw_text.startswith(indicator):
-                        logger.debug(f"Detected thinking text starting with: {indicator}")
-                        # Try to find where actual reply starts
-                        # Look for line breaks or common reply starters
-                        lines = raw_text.split('\n')
-                        if len(lines) > 1:
-                            # Take the last non-empty line as the actual reply
-                            for line in reversed(lines):
-                                if line.strip() and len(line.strip()) > 10:
-                                    reply_text = line.strip()
-                                    logger.debug(f"Extracted reply from line: {reply_text[:100]}")
-                                    break
-                        break
+                if response_match:
+                    reply_text = response_match.group(1).strip()
+                    logger.info(f"Extracted response channel ({len(reply_text)} chars)")
+                else:
+                    # No explicit response channel found, use raw text
+                    reply_text = raw_text.strip()
+                    logger.info(f"No response channel found, using raw text")
+                
+                logger.info(f"Final reply text: {reply_text[:200]}...")
                 
                 if not reply_text:
                     logger.warning(f"Empty response from LLM model {self.model}")
-                    logger.warning(f"Full response data: {data}")
                     if attempt < max_retries - 1:
                         logger.info(f"Retrying in 2 seconds...")
                         time.sleep(2)
                         continue
                     return None
                 
-                logger.info(f"LLM generated text (before clean): {reply_text[:200]}...")
-                
-                # Clean up the reply
+                # Clean up the reply (truncation, artifact removal)
                 reply_text = self._clean_reply(reply_text, max_length)
                 
                 if reply_text and len(reply_text) >= 10:
-                    logger.info(f"Generated reply (after clean): {reply_text[:80]}...")
+                    logger.info(f"Generated reply: {reply_text}")
                     return reply_text
                 else:
                     logger.warning(f"Reply too short or empty after cleaning: '{reply_text}'")
